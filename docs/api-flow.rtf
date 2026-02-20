@@ -2,9 +2,9 @@
 {\fonttbl{\f0\fswiss Helvetica;}{\f1\fmodern Courier New;}}
 {\colortbl;\red0\green0\blue0;\red0\green0\blue255;\red100\green100\blue100;}
 
-\f0\fs28\b API Request Flow: GET /api/settings?machine_model_id=1\b0\fs24\par
+\f0\fs28\b API Request Flow: GET /api/settings?laser_type=CO2&wattage=60\b0\fs24\par
 \par
-This document explains what happens when the frontend searches for laser settings on the PowerScale page.\par
+This document explains what happens when the frontend searches for laser settings on the PowerScale Dashboard.\par
 \par
 
 \fs26\b Overview\b0\fs24\par
@@ -17,19 +17,19 @@ Frontend (React) \u8594 nginx (reverse proxy) \u8594 Go Backend (Gin) \u8594 MyS
 
 \fs24\b 1. Frontend Makes Request\b0\par
 \par
-\b File:\b  frontend/src/pages/SearchPage.jsx\par
+\b File:\b  frontend/src/pages/Dashboard.jsx\par
 \par
 \f1\fs20
 const \{ data: settings \} = useQuery(\{\par
-  queryKey: ['settings', filters.machineModelId, filters.materialId, filters.operationId],\par
+  queryKey: ['settings', filters.laserType, filters.wattage, filters.markingType, filters.material],\par
   queryFn: () => fetch(`/api/settings?$\{queryParams\}`).then(r => r.json()),\par
   enabled: hasFilters,\par
 \})\par
 \f0\fs24\par
-\bullet  User selects filters (brand, model, material, operation) on the SearchPage\par
+\bullet  User selects filters (material, laser type, wattage, marking type) on the Dashboard\par
 \bullet  TanStack Query builds the request with query parameters\par
-\bullet  fetch('/api/settings?machine_model_id=1') sends HTTP GET request\par
-\bullet  Request goes to the same origin (e.g., https://laserscribe.io)\par
+\bullet  fetch('/api/settings?laser_type=CO2&wattage=60') sends HTTP GET request\par
+\bullet  Request goes to the same origin (e.g., https://laserscribed.com)\par
 \par
 
 \b 2. nginx Receives Request\b0\par
@@ -44,9 +44,10 @@ location /api \{\par
     proxy_set_header X-Real-IP $remote_addr;\par
 \}\par
 \f0\fs24\par
-\bullet  nginx listens on port 443 (HTTPS)\par
+\bullet  nginx listens on port 443 (HTTPS) with Let's Encrypt SSL\par
 \bullet  Matches /api location block\par
 \bullet  Proxies request to Go backend on localhost:8080\par
+\bullet  Passes JWT cookie through to backend\par
 \par
 
 \b 3. Go Backend Handles Request\b0\par
@@ -64,16 +65,22 @@ r.GET("/api/settings", searchSettingsHandler)\par
 \f1\fs20
 func searchSettingsHandler(c *gin.Context) \{\par
     params := db.SearchSettingsParams\{\}\par
-    if v := c.Query("machine_model_id"); v != "" \{\par
-        id, _ := strconv.Atoi(v)\par
-        params.MachineModelID = sql.NullInt32\{Int32: int32(id), Valid: true\}\par
+    if v := c.Query("laser_type"); v != "" \{\par
+        params.LaserType = sql.NullString\{String: v, Valid: true\}\par
+    \}\par
+    if v := c.Query("wattage"); v != "" \{\par
+        w, _ := strconv.Atoi(v)\par
+        params.MachineWattage = sql.NullInt32\{Int32: int32(w), Valid: true\}\par
+    \}\par
+    if v := c.Query("marking_type"); v != "" \{\par
+        params.MarkingType = sql.NullString\{String: v, Valid: true\}\par
     \}\par
     settings, err := queries.SearchSettings(c.Request.Context(), params)\par
     c.JSON(http.StatusOK, settings)\par
 \}\par
 \f0\fs24\par
-\bullet  Parses optional query parameters (machine_model_id, material_id, operation_id)\par
-\bullet  Builds sqlc params with sql.NullInt32 for optional filtering\par
+\bullet  Parses optional query parameters (laser_type, wattage, marking_type, material)\par
+\bullet  Builds sqlc params with sql.NullString / sql.NullInt32 for optional filtering\par
 \bullet  Calls sqlc-generated SearchSettings function\par
 \par
 
@@ -82,25 +89,24 @@ func searchSettingsHandler(c *gin.Context) \{\par
 \b File:\b  backend/db/queries.sql\par
 \par
 \f1\fs20
-SELECT s.*, u.username, mm.name as model_name, mb.name as brand_name,\par
-       mat.name as material_name, op.name as operation_name,\par
-       COALESCE(SUM(v.value), 0) as vote_score\par
-FROM settings s\par
-JOIN users u ON s.user_id = u.id\par
-JOIN machine_models mm ON s.machine_model_id = mm.id\par
-JOIN machine_brands mb ON mm.brand_id = mb.id\par
-JOIN materials mat ON s.material_id = mat.id\par
-JOIN operations op ON s.operation_id = op.id\par
-LEFT JOIN votes v ON v.setting_id = s.id\par
-WHERE (sqlc.narg(machine_model_id) IS NULL\par
-       OR s.machine_model_id = sqlc.narg(machine_model_id))\par
-GROUP BY s.id\par
-ORDER BY vote_score DESC\par
+SELECT ms.*, m.name as material_name, m.category as material_category,\par
+       m.thickness_mm, u.display_name as contributor,\par
+       COALESCE(ms.votes_score, 0) as score\par
+FROM material_settings ms\par
+JOIN materials m ON ms.material_id = m.id\par
+JOIN users u ON ms.user_id = u.id\par
+WHERE (sqlc.narg(laser_type) IS NULL\par
+       OR ms.laser_type = sqlc.narg(laser_type))\par
+  AND (sqlc.narg(machine_wattage) IS NULL\par
+       OR ms.machine_wattage = sqlc.narg(machine_wattage))\par
+  AND (sqlc.narg(marking_type) IS NULL\par
+       OR ms.marking_type = sqlc.narg(marking_type))\par
+ORDER BY score DESC\par
 \f0\fs24\par
-\bullet  6-table JOIN to denormalize setting data in a single query\par
+\bullet  JOIN on materials and users to denormalize data in a single query\par
 \bullet  sqlc.narg enables optional filtering (NULL = no filter)\par
-\bullet  LEFT JOIN on votes to compute aggregate vote score\par
-\bullet  Results sorted by vote_score descending (best settings first)\par
+\bullet  votes_score is a cached aggregate on material_settings (no JOIN on votes needed)\par
+\bullet  Results sorted by score descending (best settings first)\par
 \par
 
 \b 5. Response Returns to Frontend\b0\par
@@ -110,15 +116,21 @@ ORDER BY vote_score DESC\par
 [\par
   \{\par
     "ID": 1,\par
-    "BrandName": "xTool",\par
-    "ModelName": "xTool D1 Pro 10W",\par
-    "MaterialName": "3mm Birch Plywood",\par
-    "OperationName": "Cut",\par
-    "Power": 100,\par
-    "Speed": 3,\par
-    "Passes": 2,\par
-    "VoteScore": 5,\par
-    "Notes": "Clean cut through 3mm birch. Two passes recommended."\par
+    "MaterialName": "Baltic Birch",\par
+    "MaterialCategory": "Wood",\par
+    "ThicknessMm": 3.0,\par
+    "LaserType": "CO2",\par
+    "MachineWattage": 60,\par
+    "MarkingType": "Line",\par
+    "Speed": 10.0,\par
+    "MinPower": 15.0,\par
+    "MaxPower": 70.0,\par
+    "Passes": 1,\par
+    "IntervalMm": 0.0,\par
+    "AirAssist": true,\par
+    "VotesScore": 12,\par
+    "Contributor": "laserpro42",\par
+    "Notes": "Clean cut through 3mm birch. Air assist recommended."\par
   \},\par
   ...\par
 ]\par
@@ -126,32 +138,55 @@ ORDER BY vote_score DESC\par
 \bullet  Go backend sends JSON array to nginx\par
 \bullet  nginx forwards to browser\par
 \bullet  TanStack Query caches the response\par
-\bullet  SearchPage renders SettingCard components for each result\par
-\bullet  Users can vote on settings, which triggers POST /api/settings/:id/vote\par
+\bullet  Dashboard renders results table with checkboxes for .clb export selection\par
+\bullet  Users can click rows for detail modal (LightBurn-style Cut Settings Editor)\par
+\bullet  Users can vote on settings (POST /api/settings/:id/vote)\par
+\bullet  Users can check settings and download via the "Checkout" bar (POST /api/export/lightburn)\par
 \par
 
 \fs26\b Key Files Summary\b0\fs24\par
 \par
-\b Frontend:\b  frontend/src/pages/SearchPage.jsx - Builds filters, fetches settings\par
-\b Components:\b  frontend/src/components/SearchFilters.jsx - Cascading filter dropdowns\par
+\b Frontend:\b  frontend/src/pages/Dashboard.jsx - Search hub with filters, results table, checkout bar\par
+\b Components:\b  frontend/src/components/SearchFilters.jsx - Material autocomplete + dropdown filters\par
+\b Contribute:\b  frontend/src/pages/ContributePage.jsx - Split-screen: .clb bulk import + manual entry\par
 \b Proxy:\b  /etc/nginx/sites-available/default - Routes /api to Go backend\par
-\b Backend:\b  backend/main.go - Parses params, calls sqlc, returns JSON\par
+\b Backend:\b  backend/main.go - Parses params, calls sqlc, returns JSON, generates .clb exports\par
 \b Queries:\b  backend/db/queries.sql - SQL with JOINs and optional filters\par
+\par
+
+\fs26\b REST API Endpoints\b0\fs24\par
+\par
+\b Authentication:\b\par
+\bullet  POST /api/auth/register - Create user with bcrypt-hashed password\par
+\bullet  POST /api/auth/login - Validate credentials, set HTTP-only JWT cookie\par
+\bullet  GET /api/auth/me - Validate JWT, return user profile (auth required)\par
+\bullet  PUT /api/auth/password - Update password (auth required)\par
+\par
+\b Data:\b\par
+\bullet  GET /api/materials - Retrieve canonical material taxonomy\par
+\bullet  GET /api/settings - Fetch settings with filters (?laser_type, ?wattage, ?marking_type)\par
+\bullet  POST /api/settings - Submit setting(s) as JSON array or object (auth required)\par
+\bullet  POST /api/settings/:id/vote - Cast upvote/downvote (auth required)\par
+\par
+\b Export:\b\par
+\bullet  POST /api/export/lightburn - Accept setting_ids array, return .clb XML file\par
 \par
 
 \fs26\b Testing the Endpoint\b0\fs24\par
 \par
 \f1\fs20
 # All settings (no filter)\par
-curl http://localhost:8080/api/settings/top\par
+curl http://localhost:8080/api/settings\par
 \par
-# Settings for a specific machine model\par
-curl http://localhost:8080/api/settings?machine_model_id=1\par
+# Settings for CO2 lasers at 60W\par
+curl "http://localhost:8080/api/settings?laser_type=CO2&wattage=60"\par
 \par
-# Settings for a machine + material combination\par
-curl "http://localhost:8080/api/settings?machine_model_id=1&material_id=1"\par
+# Settings for a specific marking type\par
+curl "http://localhost:8080/api/settings?marking_type=Fill"\par
 \par
-# Single setting detail with vote score\par
-curl http://localhost:8080/api/settings/1\par
+# Export selected settings as .clb\par
+curl -X POST http://localhost:8080/api/export/lightburn \\\par
+  -H "Content-Type: application/json" \\\par
+  -d '\{"setting_ids": [1, 2, 3]\}'\par
 \f0\fs24\par
 }

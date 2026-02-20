@@ -2,7 +2,7 @@
 <html lang="en"><head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Laserscribe Architecture Guide</title>
+    <title>Laserscribed Architecture Guide</title>
     <style>
         * {
             margin: 0;
@@ -203,16 +203,16 @@
 <body>
     <div class="container">
         <header>
-            <h1>Laserscribe Architecture Guide</h1>
+            <h1>Laserscribed Architecture Guide</h1>
             <p style="font-size: 1.2em; margin-top: 10px;">A Complete Guide to React, Go, MySQL, sqlc, NGINX, and GitHub</p>
         </header>
 
         <section id="introduction">
             <h2>Introduction</h2>
-            <p>Laserscribe is a community-driven platform for laser engraving and cutting settings. The core product is <strong>PowerScale</strong> — a crowd-sourced, vote-validated material settings database. This guide explains how each component of the full-stack application fits together and how data flows from the user's browser to the database and back.</p>
+            <p><strong>Laserscribed</strong> is a centralized web-based community hub for laser engraving professionals and hobbyists. Its flagship application, <strong>PowerScale</strong>, is a crowd-sourced, vote-validated database of laser material settings. This guide explains how each component of the full-stack application fits together and how data flows from the user's browser to the database and back.</p>
 
             <div class="highlight">
-                <strong>What is PowerScale?</strong> Users look up laser settings by machine and material, contribute their own tested settings, and vote on accuracy. The goal: stop wasting material dialing in settings. Settings are ranked by community votes — the best float to the top.
+                <strong>What is PowerScale?</strong> Currently, laser settings are fragmented across Facebook groups, Reddit, and static spreadsheets. PowerScale solves this by providing a unified, searchable platform where users can discover, validate, and share machine-specific settings. The system uniquely bridges the gap between web applications and desktop software by natively importing and exporting <strong>LightBurn (.clb)</strong> XML library files.
             </div>
         </section>
 
@@ -220,7 +220,9 @@
             <h3>Table of Contents</h3>
             <ul>
                 <li><a href="#system-overview">System Overview</a></li>
+                <li><a href="#core-features">Core Features</a></li>
                 <li><a href="#components">The Components Explained</a></li>
+                <li><a href="#pages">Pages and User Flow</a></li>
                 <li><a href="#data-flow">How It All Works Together</a></li>
                 <li><a href="#database">Database Architecture</a></li>
                 <li><a href="#development">Development Workflow</a></li>
@@ -230,7 +232,7 @@
 
         <section id="system-overview">
             <h2>System Overview</h2>
-            <p>Here's how all the components connect in the Laserscribe application:</p>
+            <p>Here's how all the components connect in the Laserscribed application:</p>
 
             <div class="diagram-container">
                 <div class="diagram-title">Complete System Architecture</div>
@@ -252,7 +254,7 @@
                         <rect x="300" y="160" width="200" height="80" fill="#009688" rx="5" stroke="#00695C" stroke-width="2"></rect>
                         <text x="400" y="190" text-anchor="middle" fill="white" font-size="16" font-weight="bold">NGINX</text>
                         <text x="400" y="210" text-anchor="middle" fill="white" font-size="14">Reverse Proxy</text>
-                        <text x="400" y="228" text-anchor="middle" fill="white" font-size="12">Routes Traffic</text>
+                        <text x="400" y="228" text-anchor="middle" fill="white" font-size="12">Routes Traffic + SSL</text>
                     </g>
 
                     <!-- Arrow to Go Backend -->
@@ -267,9 +269,9 @@
                     <g class="component-box">
                         <rect x="300" y="320" width="200" height="100" fill="#00BCD4" rx="5" stroke="#0097A7" stroke-width="2"></rect>
                         <text x="400" y="350" text-anchor="middle" fill="white" font-size="16" font-weight="bold">Go Backend (Gin)</text>
-                        <text x="400" y="370" text-anchor="middle" fill="white" font-size="14">API Server</text>
-                        <text x="400" y="388" text-anchor="middle" fill="white" font-size="12">Port 8080</text>
-                        <text x="400" y="408" text-anchor="middle" fill="white" font-size="12">Auth + Business Logic</text>
+                        <text x="400" y="370" text-anchor="middle" fill="white" font-size="14">REST API Server</text>
+                        <text x="400" y="388" text-anchor="middle" fill="white" font-size="12">Port 8080 | JWT Auth</text>
+                        <text x="400" y="408" text-anchor="middle" fill="white" font-size="12">.clb Export Engine</text>
                     </g>
 
                     <!-- Arrow to sqlc -->
@@ -294,7 +296,7 @@
                         <text x="400" y="650" text-anchor="middle" fill="white" font-size="16" font-weight="bold">MySQL Database</text>
                         <text x="400" y="670" text-anchor="middle" fill="white" font-size="14">Persistent Storage</text>
                         <text x="400" y="688" text-anchor="middle" fill="white" font-size="12">Settings, Votes, Users</text>
-                        <text x="400" y="706" text-anchor="middle" fill="white" font-size="12">Machines, Materials</text>
+                        <text x="400" y="706" text-anchor="middle" fill="white" font-size="12">Materials</text>
                     </g>
 
                     <!-- GitHub -->
@@ -311,7 +313,7 @@
 
                     <!-- AWS/Server Container -->
                     <rect x="270" y="140" width="260" height="600" fill="none" stroke="#f97316" stroke-width="3" stroke-dasharray="10,5" rx="10"></rect>
-                    <text x="400" y="750" text-anchor="middle" fill="#f97316" font-size="14" font-weight="bold">Production Server</text>
+                    <text x="400" y="750" text-anchor="middle" fill="#f97316" font-size="14" font-weight="bold">Production Server (AWS Lightsail)</text>
 
                     <!-- Node.js (Development Only) -->
                     <g class="component-box">
@@ -342,40 +344,81 @@
                     </g>
                 </svg>
             </div>
+
+            <h3>Technology Stack</h3>
+            <table>
+                <thead>
+                    <tr><th>Layer</th><th>Technology</th><th>Purpose</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Frontend</td><td>React (Vite)</td><td>User interface, .clb file parsing</td></tr>
+                    <tr><td>Styling</td><td>Tailwind CSS v4</td><td>Utility-first CSS with custom dark theme</td></tr>
+                    <tr><td>Server State</td><td>TanStack Query</td><td>Data fetching, caching, synchronization</td></tr>
+                    <tr><td>Client State</td><td>React Context</td><td>Cart/checkout state for .clb export</td></tr>
+                    <tr><td>Backend</td><td>Go (Gin)</td><td>REST API, .clb generation, business logic</td></tr>
+                    <tr><td>Database</td><td>MySQL</td><td>Persistent storage via sqlc</td></tr>
+                    <tr><td>Authentication</td><td>JWT</td><td>HTTP-only cookies, bcrypt password hashing</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section id="core-features">
+            <h2>Core Features</h2>
+
+            <h3>1. In-Browser .clb Parsing</h3>
+            <p>Users can drag-and-drop LightBurn library files (.clb). The React frontend locally parses the XML, extracts the settings, and stages them for bulk upload — eliminating manual data entry.</p>
+
+            <h3>2. "Add to Cart" LightBurn Export</h3>
+            <p>Instead of downloading individual settings, users select multiple settings across different materials using checkboxes. A persistent "Checkout" bar aggregates these selections and triggers the Go backend to dynamically generate a single, unified .clb file for download.</p>
+
+            <h3>3. Faceted Data Discovery</h3>
+            <p>High-performance filtering allowing users to cross-reference settings by <strong>Material</strong>, <strong>Laser Type</strong> (Diode, CO2, Fiber, UV), <strong>Wattage</strong>, and <strong>Type of Marking</strong> (Line, Fill, 3D Engrave, Image).</p>
+
+            <h3>4. Community Validation (Voting)</h3>
+            <p>A gamified upvote/downvote system tied to authenticated user profiles ensures the most reliable settings rise to the top of the search results.</p>
+
+            <h3>5. Material Normalization</h3>
+            <p>Backend logic maps user-submitted material names (e.g., "3mm Plywood", "Birch 1/8") to a standardized canonical taxonomy to prevent database fragmentation.</p>
         </section>
 
         <section id="components">
             <h2>The Components Explained</h2>
 
             <h3>1. React Frontend (The User Interface)</h3>
-            <p><strong>What it is:</strong> React 19 is a JavaScript library for building user interfaces. It creates the web pages that users see and interact with in their browser.</p>
+            <p><strong>What it is:</strong> React is a JavaScript library for building user interfaces. It creates the web pages that users see and interact with in their browser.</p>
 
-            <p><strong>What it does in Laserscribe:</strong></p>
+            <p><strong>What it does in Laserscribed:</strong></p>
             <ul>
-                <li>Displays the PowerScale search interface with cascading filters (brand → model → material → operation)</li>
-                <li>Renders setting cards with power, speed, passes, and vote scores</li>
+                <li>Displays the PowerScale search interface with faceted filters (Material, Laser Type, Wattage, Marking Type)</li>
+                <li>Renders settings results table with checkboxes for .clb export selection</li>
+                <li>Opens detail modals mimicking LightBurn's "Cut Settings Editor"</li>
+                <li>Parses .clb XML files client-side for bulk import</li>
+                <li>Manages cart/checkout state via React Context</li>
                 <li>Handles user interactions (voting, contributing settings, authentication)</li>
                 <li>Makes requests to the backend API using TanStack Query for caching and state management</li>
-                <li>Provides a responsive dark-themed UI with sidebar navigation</li>
+                <li>Provides a responsive dark-themed UI</li>
             </ul>
 
             <p><strong>Key technologies:</strong></p>
             <ul>
-                <li><strong>Vite 7</strong> — Lightning-fast build tool and dev server</li>
+                <li><strong>Vite</strong> — Lightning-fast build tool and dev server</li>
                 <li><strong>Tailwind CSS v4</strong> — Utility-first styling with custom theme colors</li>
-                <li><strong>TanStack Query v5</strong> — Data fetching, caching, and synchronization</li>
-                <li><strong>React Router v7</strong> — Client-side page navigation</li>
+                <li><strong>TanStack Query</strong> — Data fetching, caching, and synchronization (server state)</li>
+                <li><strong>React Context</strong> — Client-side state management (cart/checkout)</li>
+                <li><strong>React Router</strong> — Client-side page navigation</li>
             </ul>
 
             <h3>2. Go Backend with Gin Framework (The API Server)</h3>
-            <p><strong>What it is:</strong> Go is a programming language that runs on the server. The Laserscribe backend uses the Gin framework to create a REST API that the React frontend calls.</p>
+            <p><strong>What it is:</strong> Go is a programming language that runs on the server. The Laserscribed backend uses the Gin framework to create a REST API that the React frontend calls.</p>
 
             <p><strong>What it does:</strong></p>
             <ul>
-                <li>Handles 16+ API endpoints for settings, machines, materials, votes, and auth</li>
-                <li>Authenticates users with bcrypt password hashing</li>
+                <li>Handles REST API endpoints for auth, settings, materials, votes, and .clb export</li>
+                <li>Authenticates users with JWT tokens stored in HTTP-only cookies</li>
+                <li>Hashes passwords with bcrypt</li>
                 <li>Connects to MySQL using sqlc-generated type-safe code</li>
-                <li>Validates data and enforces business rules (one setting per user/machine/material/operation combo)</li>
+                <li>Accepts bulk setting uploads (JSON arrays) from .clb imports</li>
+                <li>Generates LightBurn .clb XML files from selected settings</li>
                 <li>Computes vote scores via SQL aggregation</li>
             </ul>
 
@@ -386,34 +429,30 @@
                         <th>Method</th>
                         <th>Endpoint</th>
                         <th>Description</th>
+                        <th>Auth?</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr><td>POST</td><td><code>/api/register</code></td><td>User registration</td></tr>
-                    <tr><td>POST</td><td><code>/api/login</code></td><td>User login</td></tr>
-                    <tr><td>GET</td><td><code>/api/brands</code></td><td>List machine brands</td></tr>
-                    <tr><td>GET</td><td><code>/api/brands/:id/models</code></td><td>Models for a brand</td></tr>
-                    <tr><td>GET</td><td><code>/api/materials</code></td><td>List/search materials</td></tr>
-                    <tr><td>GET</td><td><code>/api/operations</code></td><td>List operations</td></tr>
-                    <tr><td>GET</td><td><code>/api/settings</code></td><td>Search settings (filtered)</td></tr>
-                    <tr><td>GET</td><td><code>/api/settings/top</code></td><td>Top-voted settings</td></tr>
-                    <tr><td>GET</td><td><code>/api/settings/:id</code></td><td>Single setting detail</td></tr>
-                    <tr><td>POST</td><td><code>/api/settings</code></td><td>Submit setting (auth required)</td></tr>
-                    <tr><td>PUT</td><td><code>/api/settings/:id</code></td><td>Edit own setting (auth required)</td></tr>
-                    <tr><td>DELETE</td><td><code>/api/settings/:id</code></td><td>Delete own setting (auth required)</td></tr>
-                    <tr><td>POST</td><td><code>/api/settings/:id/vote</code></td><td>Vote on setting (auth required)</td></tr>
+                    <tr><td>POST</td><td><code>/api/auth/register</code></td><td>Create user with bcrypt-hashed password</td><td>No</td></tr>
+                    <tr><td>POST</td><td><code>/api/auth/login</code></td><td>Validate credentials, set HTTP-only JWT cookie</td><td>No</td></tr>
+                    <tr><td>GET</td><td><code>/api/auth/me</code></td><td>Validate JWT cookie, return user profile</td><td>Yes</td></tr>
+                    <tr><td>PUT</td><td><code>/api/auth/password</code></td><td>Update password (requires current password)</td><td>Yes</td></tr>
+                    <tr><td>GET</td><td><code>/api/materials</code></td><td>Retrieve canonical material taxonomy</td><td>No</td></tr>
+                    <tr><td>GET</td><td><code>/api/settings</code></td><td>Fetch settings with filters (?laser_type, ?wattage, ?marking_type, ?material)</td><td>No</td></tr>
+                    <tr><td>POST</td><td><code>/api/settings</code></td><td>Accept JSON array (bulk) or object (single)</td><td>Yes</td></tr>
+                    <tr><td>POST</td><td><code>/api/settings/{id}/vote</code></td><td>Cast upvote/downvote for a setting</td><td>Yes</td></tr>
+                    <tr><td>POST</td><td><code>/api/export/lightburn</code></td><td>Accept setting IDs, return .clb XML file</td><td>No</td></tr>
                 </tbody>
             </table>
 
             <h3>3. MySQL Database (Persistent Data Storage)</h3>
-            <p><strong>What it is:</strong> MySQL is a relational database that stores all of Laserscribe's data in structured, related tables.</p>
+            <p><strong>What it is:</strong> MySQL is a relational database that stores all of Laserscribed's data in structured, related tables.</p>
 
             <p><strong>What it stores:</strong></p>
             <ul>
                 <li><strong>Users</strong> — accounts, credentials, display names</li>
-                <li><strong>Machine catalog</strong> — brands, models, laser types, wattages</li>
-                <li><strong>Material library</strong> — categories, materials, aliases for normalization</li>
-                <li><strong>Settings</strong> — the core PowerScale data (power, speed, passes, frequency, DPI, notes)</li>
+                <li><strong>Materials</strong> — canonical material taxonomy with name, thickness, and category</li>
+                <li><strong>Material Settings</strong> — the core PowerScale data (laser type, wattage, marking type, speed, power, passes, interval, z-offset, air assist, cached vote score)</li>
                 <li><strong>Votes</strong> — community validation (+1/-1 per user per setting)</li>
             </ul>
 
@@ -427,25 +466,26 @@
             <p><strong>Example sqlc workflow:</strong></p>
             <pre><code>-- queries.sql: You write SQL with annotations
 -- name: SearchSettings :many
-SELECT s.*, u.username, mm.name as model_name,
-       COALESCE(SUM(v.value), 0) as vote_score
-FROM settings s
-JOIN users u ON s.user_id = u.id
-JOIN machine_models mm ON s.machine_model_id = mm.id
-LEFT JOIN votes v ON v.setting_id = s.id
-WHERE (sqlc.narg(machine_model_id) IS NULL
-       OR s.machine_model_id = sqlc.narg(machine_model_id))
-GROUP BY s.id
-ORDER BY vote_score DESC;</code></pre>
+SELECT ms.*, m.name as material_name, m.category,
+       COALESCE(ms.votes_score, 0) as score
+FROM material_settings ms
+JOIN materials m ON ms.material_id = m.id
+WHERE (sqlc.narg(laser_type) IS NULL
+       OR ms.laser_type = sqlc.narg(laser_type))
+  AND (sqlc.narg(machine_wattage) IS NULL
+       OR ms.machine_wattage = sqlc.narg(machine_wattage))
+  AND (sqlc.narg(marking_type) IS NULL
+       OR ms.marking_type = sqlc.narg(marking_type))
+ORDER BY score DESC;</code></pre>
 
             <pre><code>// sqlc generates type-safe Go code:
 func (q *Queries) SearchSettings(ctx context.Context, arg SearchSettingsParams) ([]SearchSettingsRow, error)
 
 // With a typed params struct:
 type SearchSettingsParams struct {
-    MachineModelID sql.NullInt32
-    MaterialID     sql.NullInt32
-    OperationID    sql.NullInt32
+    LaserType      sql.NullString
+    MachineWattage sql.NullInt32
+    MarkingType    sql.NullString
 }</code></pre>
 
             <h3>5. Node.js / Vite (Build Tool)</h3>
@@ -461,7 +501,7 @@ type SearchSettingsParams struct {
             <p><strong>What it does:</strong></p>
             <ul>
                 <li>Receives ALL incoming requests from users' browsers</li>
-                <li>Handles SSL/TLS certificates (HTTPS encryption)</li>
+                <li>Handles SSL/TLS certificates (HTTPS encryption via Let's Encrypt)</li>
                 <li>Routes API requests (<code>/api/*</code>) to the Go backend on port 8080</li>
                 <li>Serves React static files directly for page requests</li>
             </ul>
@@ -476,6 +516,38 @@ type SearchSettingsParams struct {
             </ul>
         </section>
 
+        <section id="pages">
+            <h2>Pages and User Flow</h2>
+
+            <h3>A. The Dashboard / Search Hub (Home Page)</h3>
+            <ul>
+                <li><strong>Search Interface:</strong>
+                    <ul>
+                        <li>Material: Autocomplete text field (e.g., "Baltic Birch")</li>
+                        <li>Type of Laser: Dropdown (Diode, CO2, Fiber, UV, Infrared)</li>
+                        <li>Wattage: Dropdown (10W, 20W, 40W, 60W, 100W+)</li>
+                        <li>Type of Marking: Dropdown (Line/Cut, Fill/Engrave, Offset Fill, Image, 3D Engrave/Sliced)</li>
+                    </ul>
+                </li>
+                <li><strong>Results Table:</strong> Displays matching settings sorted by community upvotes. Each row includes a checkbox for selection.</li>
+                <li><strong>Detail Modal:</strong> Clicking a row opens a modal mimicking LightBurn's "Cut Settings Editor" (Speed, Min/Max Power, Passes, Interval, Air Assist, etc.).</li>
+                <li><strong>The "Checkout" Bar:</strong> A sticky footer that appears when items are checked. Displays the total selected items and a "Download .clb Library" button.</li>
+            </ul>
+
+            <h3>B. Authentication &amp; Profile</h3>
+            <ul>
+                <li><strong>Inline Login/Signup:</strong> A self-contained panel on the home page. Users log in with Email/Password.</li>
+                <li><strong>Profile Management:</strong> Accessed via a top navigation dropdown. Allows users to change their password (requiring current password validation) and view a history of their contributed settings.</li>
+            </ul>
+
+            <h3>C. The Contribution Dashboard (/contribute)</h3>
+            <p>A split-screen interface offering two paths:</p>
+            <ul>
+                <li><strong>Path 1: Bulk Import (The Staging Area):</strong> A dropzone for .clb files. Once dropped, a preview table appears. The user selects the Laser Type and Wattage globally for the imported list (since LightBurn .clb files don't store hardware info), then clicks "Publish to PowerScale."</li>
+                <li><strong>Path 2: Manual Entry:</strong> A standard web form mirroring LightBurn inputs for users who only want to contribute a single setting.</li>
+            </ul>
+        </section>
+
         <section id="data-flow">
             <h2>How It All Works Together</h2>
 
@@ -486,7 +558,7 @@ type SearchSettingsParams struct {
                     <g>
                         <circle cx="100" cy="50" r="30" fill="#f97316" stroke="#ea580c" stroke-width="2"></circle>
                         <text x="100" y="55" text-anchor="middle" fill="white" font-size="20" font-weight="bold">1</text>
-                        <text x="150" y="55" font-size="14">User selects machine &amp; material filters</text>
+                        <text x="150" y="55" font-size="14">User selects material, laser type, wattage, marking type</text>
                     </g>
                     <path d="M 100 80 L 100 130" stroke="#333" stroke-width="2" marker-end="url(#arrow2)"></path>
 
@@ -516,7 +588,7 @@ type SearchSettingsParams struct {
                     <g>
                         <circle cx="180" cy="360" r="20" fill="#00BCD4" stroke="#0097A7" stroke-width="2"></circle>
                         <text x="180" y="365" text-anchor="middle" fill="white" font-size="16" font-weight="bold">4</text>
-                        <text x="210" y="365" font-size="12">Go parses filter params</text>
+                        <text x="210" y="365" font-size="12">Go parses filter params + validates JWT</text>
                     </g>
 
                     <path d="M 180 380 L 180 430" stroke="#333" stroke-width="2" marker-end="url(#arrow2)"></path>
@@ -530,7 +602,7 @@ type SearchSettingsParams struct {
                     <g>
                         <circle cx="180" cy="540" r="20" fill="#3F51B5" stroke="#303F9F" stroke-width="2"></circle>
                         <text x="180" y="545" text-anchor="middle" fill="white" font-size="16" font-weight="bold">6</text>
-                        <text x="210" y="545" font-size="12">6-table JOIN + vote aggregation</text>
+                        <text x="210" y="545" font-size="12">JOIN materials + vote aggregation</text>
                     </g>
 
                     <path d="M 200 540 L 250 540 L 250 360 L 200 360" stroke="#28a745" stroke-width="2" marker-end="url(#arrow-green)" stroke-dasharray="5,5"></path>
@@ -539,29 +611,29 @@ type SearchSettingsParams struct {
                     <g>
                         <circle cx="180" cy="620" r="20" fill="#28a745" stroke="#1e7e34" stroke-width="2"></circle>
                         <text x="180" y="625" text-anchor="middle" fill="white" font-size="16" font-weight="bold">7</text>
-                        <text x="210" y="625" font-size="12">JSON settings to React → render SettingCards</text>
+                        <text x="210" y="625" font-size="12">JSON to React → render results table + checkboxes</text>
                     </g>
                     <path d="M 180 560 L 180 600" stroke="#28a745" stroke-width="2" marker-end="url(#arrow-green)" stroke-dasharray="5,5"></path>
 
                     <!-- Code Examples -->
                     <g transform="translate(350, 50)">
-                        <text x="0" y="0" font-size="14" font-weight="bold" fill="#333">Example: Search Settings for xTool D1 Pro</text>
+                        <text x="0" y="0" font-size="14" font-weight="bold" fill="#333">Example: Search Settings for CO2 60W Fill Engrave</text>
 
                         <rect x="0" y="10" width="500" height="220" fill="#f8f9fa" stroke="#ddd" stroke-width="1" rx="5"></rect>
 
-                        <text x="10" y="30" font-size="12" fill="#666" font-weight="bold">1. React (SearchPage.jsx):</text>
-                        <text x="10" y="48" font-size="11" font-family="monospace" fill="#333">fetch('/api/settings?machine_model_id=1')</text>
-                        <text x="10" y="63" font-size="11" font-family="monospace" fill="#333">  .then(r =&gt; r.json())</text>
+                        <text x="10" y="30" font-size="12" fill="#666" font-weight="bold">1. React (SearchHub):</text>
+                        <text x="10" y="48" font-size="11" font-family="monospace" fill="#333">fetch('/api/settings?laser_type=CO2&amp;wattage=60</text>
+                        <text x="10" y="63" font-size="11" font-family="monospace" fill="#333">  &amp;marking_type=Fill').then(r =&gt; r.json())</text>
 
                         <text x="10" y="90" font-size="12" fill="#666" font-weight="bold">2. Go Backend (main.go):</text>
-                        <text x="10" y="108" font-size="11" font-family="monospace" fill="#333">params.MachineModelID = sql.NullInt32{</text>
-                        <text x="10" y="123" font-size="11" font-family="monospace" fill="#333">  Int32: 1, Valid: true}</text>
+                        <text x="10" y="108" font-size="11" font-family="monospace" fill="#333">params.LaserType = sql.NullString{</text>
+                        <text x="10" y="123" font-size="11" font-family="monospace" fill="#333">  String: "CO2", Valid: true}</text>
                         <text x="10" y="138" font-size="11" font-family="monospace" fill="#333">settings, _ := queries.SearchSettings(ctx, params)</text>
 
                         <text x="10" y="165" font-size="12" fill="#666" font-weight="bold">3. MySQL (via sqlc):</text>
-                        <text x="10" y="183" font-size="11" font-family="monospace" fill="#333">SELECT s.*, COALESCE(SUM(v.value), 0) as score</text>
-                        <text x="10" y="198" font-size="11" font-family="monospace" fill="#333">FROM settings s LEFT JOIN votes v ON ...</text>
-                        <text x="10" y="213" font-size="11" font-family="monospace" fill="#333">WHERE s.machine_model_id = 1 ORDER BY score DESC</text>
+                        <text x="10" y="183" font-size="11" font-family="monospace" fill="#333">SELECT ms.*, m.name, ms.votes_score as score</text>
+                        <text x="10" y="198" font-size="11" font-family="monospace" fill="#333">FROM material_settings ms JOIN materials m ON ...</text>
+                        <text x="10" y="213" font-size="11" font-family="monospace" fill="#333">WHERE ms.laser_type='CO2' ORDER BY score DESC</text>
                     </g>
 
                     <defs>
@@ -575,42 +647,64 @@ type SearchSettingsParams struct {
                 </svg>
             </div>
 
-            <h3>Detailed Example: Loading the PowerScale Search Page</h3>
+            <h3>Detailed Example: Loading the PowerScale Search Hub</h3>
             <ol>
-                <li><strong>Browser requests:</strong> <code>https://laserscribe.io/search</code></li>
+                <li><strong>Browser requests:</strong> <code>https://laserscribed.com</code></li>
                 <li><strong>NGINX receives request</strong>
                     <ul>
-                        <li>Path is <code>/search</code> (not <code>/api/*</code>)</li>
+                        <li>Path is <code>/</code> (not <code>/api/*</code>)</li>
                         <li>Serves the React SPA: <code>index.html</code></li>
                     </ul>
                 </li>
                 <li><strong>Browser loads React app</strong>
                     <ul>
-                        <li>React Router renders SearchPage component</li>
-                        <li>TanStack Query fetches <code>/api/brands</code>, <code>/api/materials</code>, <code>/api/operations</code> for filter dropdowns</li>
+                        <li>React Router renders the Dashboard / Search Hub</li>
+                        <li>TanStack Query fetches <code>/api/materials</code> for autocomplete</li>
                     </ul>
                 </li>
                 <li><strong>User selects filters</strong>
                     <ul>
-                        <li>Picks brand → triggers fetch for <code>/api/brands/1/models</code></li>
-                        <li>Picks model → TanStack Query fetches <code>/api/settings?machine_model_id=1</code></li>
+                        <li>Types material name → autocomplete suggests canonical matches</li>
+                        <li>Selects Laser Type, Wattage, Marking Type from dropdowns</li>
+                        <li>TanStack Query fetches <code>/api/settings?laser_type=CO2&amp;wattage=60&amp;marking_type=Fill</code></li>
                     </ul>
                 </li>
                 <li><strong>Go backend processes request</strong>
                     <ul>
                         <li>Parses query params into SearchSettingsParams</li>
-                        <li>Calls sqlc: 6-table JOIN with optional WHERE clauses</li>
-                        <li>MySQL returns rows with vote aggregation</li>
-                        <li>Go serializes to JSON, sorted by vote score</li>
+                        <li>Calls sqlc: JOIN materials table with optional WHERE clauses</li>
+                        <li>MySQL returns rows sorted by cached votes_score</li>
+                        <li>Go serializes to JSON</li>
                     </ul>
                 </li>
                 <li><strong>React renders results</strong>
                     <ul>
-                        <li>SettingsTable maps over results</li>
-                        <li>Each SettingCard shows power/speed/passes + vote buttons</li>
+                        <li>Results table displays settings with checkboxes</li>
+                        <li>Users can click rows for detail modal (LightBurn-style Cut Settings Editor)</li>
                         <li>Users can upvote/downvote (triggers POST to <code>/api/settings/:id/vote</code>)</li>
+                        <li>Users can check settings for .clb export → sticky checkout bar appears</li>
                     </ul>
                 </li>
+            </ol>
+
+            <h3>LightBurn .clb Import Flow</h3>
+            <ol>
+                <li><strong>User navigates to /contribute</strong> and selects "Bulk Import"</li>
+                <li><strong>Drops .clb file</strong> into the dropzone</li>
+                <li><strong>React parses XML client-side</strong> — extracts speed, power, passes, interval, material names</li>
+                <li><strong>Preview table</strong> shows extracted settings</li>
+                <li><strong>User selects Laser Type and Wattage</strong> globally (not in .clb files)</li>
+                <li><strong>Clicks "Publish to PowerScale"</strong></li>
+                <li><strong>POST /api/settings</strong> with JSON array body → backend inserts all settings</li>
+            </ol>
+
+            <h3>LightBurn .clb Export Flow</h3>
+            <ol>
+                <li><strong>User checks settings</strong> in the results table</li>
+                <li><strong>Sticky checkout bar</strong> shows "3 items selected — Download .clb Library"</li>
+                <li><strong>Click download</strong> → POST <code>/api/export/lightburn</code> with <code>{ setting_ids: [1, 2, 3] }</code></li>
+                <li><strong>Go backend aggregates</strong> setting data and generates valid LightBurn XML</li>
+                <li><strong>Browser downloads</strong> the .clb file</li>
             </ol>
         </section>
 
@@ -618,118 +712,69 @@ type SearchSettingsParams struct {
             <h2>Database Architecture</h2>
 
             <div class="diagram-container">
-                <div class="diagram-title">Database Schema (9 Tables)</div>
-                <svg viewBox="0 0 850 550" xmlns="http://www.w3.org/2000/svg">
-                    <!-- Machine Brands -->
+                <div class="diagram-title">Database Schema (4 Tables)</div>
+                <svg viewBox="0 0 850 450" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Users -->
                     <g>
-                        <rect x="30" y="30" width="160" height="90" fill="#E3F2FD" stroke="#1976D2" stroke-width="2" rx="5"></rect>
-                        <rect x="30" y="30" width="160" height="25" fill="#1976D2" rx="5"></rect>
-                        <text x="110" y="47" text-anchor="middle" fill="white" font-size="12" font-weight="bold">machine_brands</text>
-                        <text x="40" y="70" font-size="10" font-weight="bold">id</text>
-                        <text x="40" y="85" font-size="10">name, slug</text>
-                    </g>
-
-                    <!-- Machine Models -->
-                    <g>
-                        <rect x="30" y="160" width="160" height="110" fill="#E3F2FD" stroke="#1976D2" stroke-width="2" rx="5"></rect>
-                        <rect x="30" y="160" width="160" height="25" fill="#1976D2" rx="5"></rect>
-                        <text x="110" y="177" text-anchor="middle" fill="white" font-size="12" font-weight="bold">machine_models</text>
-                        <text x="40" y="200" font-size="10" font-weight="bold">id, brand_id (FK)</text>
-                        <text x="40" y="215" font-size="10">name, slug</text>
-                        <text x="40" y="230" font-size="10">laser_type (enum)</text>
-                        <text x="40" y="245" font-size="10">wattage</text>
-                    </g>
-
-                    <!-- Arrow brands to models -->
-                    <path d="M 110 120 L 110 160" stroke="#1976D2" stroke-width="2" fill="none" marker-end="url(#fk-arrow)"></path>
-
-                    <!-- Material Categories -->
-                    <g>
-                        <rect x="250" y="30" width="160" height="90" fill="#E8F5E9" stroke="#388E3C" stroke-width="2" rx="5"></rect>
-                        <rect x="250" y="30" width="160" height="25" fill="#388E3C" rx="5"></rect>
-                        <text x="330" y="47" text-anchor="middle" fill="white" font-size="12" font-weight="bold">material_categories</text>
-                        <text x="260" y="70" font-size="10" font-weight="bold">id</text>
-                        <text x="260" y="85" font-size="10">name</text>
+                        <rect x="30" y="30" width="200" height="130" fill="#FFF3E0" stroke="#F57C00" stroke-width="2" rx="5"></rect>
+                        <rect x="30" y="30" width="200" height="25" fill="#F57C00" rx="5"></rect>
+                        <text x="130" y="47" text-anchor="middle" fill="white" font-size="12" font-weight="bold">users</text>
+                        <text x="40" y="70" font-size="10" font-weight="bold">id (PK, BIGINT)</text>
+                        <text x="40" y="85" font-size="10">email (VARCHAR, Unique)</text>
+                        <text x="40" y="100" font-size="10">password_hash (VARCHAR)</text>
+                        <text x="40" y="115" font-size="10">display_name (VARCHAR)</text>
+                        <text x="40" y="130" font-size="10">created_at (TIMESTAMP)</text>
                     </g>
 
                     <!-- Materials -->
                     <g>
-                        <rect x="250" y="160" width="160" height="100" fill="#E8F5E9" stroke="#388E3C" stroke-width="2" rx="5"></rect>
-                        <rect x="250" y="160" width="160" height="25" fill="#388E3C" rx="5"></rect>
-                        <text x="330" y="177" text-anchor="middle" fill="white" font-size="12" font-weight="bold">materials</text>
-                        <text x="260" y="200" font-size="10" font-weight="bold">id, category_id (FK)</text>
-                        <text x="260" y="215" font-size="10">name, slug</text>
+                        <rect x="30" y="220" width="200" height="120" fill="#E8F5E9" stroke="#388E3C" stroke-width="2" rx="5"></rect>
+                        <rect x="30" y="220" width="200" height="25" fill="#388E3C" rx="5"></rect>
+                        <text x="130" y="237" text-anchor="middle" fill="white" font-size="12" font-weight="bold">materials</text>
+                        <text x="40" y="260" font-size="10" font-weight="bold">id (PK, BIGINT)</text>
+                        <text x="40" y="275" font-size="10">name (VARCHAR)</text>
+                        <text x="40" y="290" font-size="10">thickness_mm (DECIMAL)</text>
+                        <text x="40" y="305" font-size="10">category (VARCHAR)</text>
                     </g>
 
-                    <!-- Arrow categories to materials -->
-                    <path d="M 330 120 L 330 160" stroke="#388E3C" stroke-width="2" fill="none" marker-end="url(#fk-arrow)"></path>
-
-                    <!-- Material Aliases -->
+                    <!-- Material Settings (center) -->
                     <g>
-                        <rect x="250" y="300" width="160" height="90" fill="#E8F5E9" stroke="#388E3C" stroke-width="2" rx="5"></rect>
-                        <rect x="250" y="300" width="160" height="25" fill="#388E3C" rx="5"></rect>
-                        <text x="330" y="317" text-anchor="middle" fill="white" font-size="12" font-weight="bold">material_aliases</text>
-                        <text x="260" y="340" font-size="10" font-weight="bold">id, material_id (FK)</text>
-                        <text x="260" y="355" font-size="10">alias</text>
-                    </g>
-
-                    <!-- Arrow materials to aliases -->
-                    <path d="M 330 260 L 330 300" stroke="#388E3C" stroke-width="2" fill="none" marker-end="url(#fk-arrow)"></path>
-
-                    <!-- Users -->
-                    <g>
-                        <rect x="470" y="30" width="160" height="110" fill="#FFF3E0" stroke="#F57C00" stroke-width="2" rx="5"></rect>
-                        <rect x="470" y="30" width="160" height="25" fill="#F57C00" rx="5"></rect>
-                        <text x="550" y="47" text-anchor="middle" fill="white" font-size="12" font-weight="bold">users</text>
-                        <text x="480" y="70" font-size="10" font-weight="bold">id</text>
-                        <text x="480" y="85" font-size="10">username, email</text>
-                        <text x="480" y="100" font-size="10">password_hash</text>
-                        <text x="480" y="115" font-size="10">display_name</text>
-                    </g>
-
-                    <!-- Operations -->
-                    <g>
-                        <rect x="680" y="30" width="140" height="90" fill="#F3E5F5" stroke="#7B1FA2" stroke-width="2" rx="5"></rect>
-                        <rect x="680" y="30" width="140" height="25" fill="#7B1FA2" rx="5"></rect>
-                        <text x="750" y="47" text-anchor="middle" fill="white" font-size="12" font-weight="bold">operations</text>
-                        <text x="690" y="70" font-size="10" font-weight="bold">id</text>
-                        <text x="690" y="85" font-size="10">name</text>
-                    </g>
-
-                    <!-- Settings (center) -->
-                    <g>
-                        <rect x="430" y="200" width="240" height="170" fill="#FFEBEE" stroke="#D32F2F" stroke-width="3" rx="5"></rect>
-                        <rect x="430" y="200" width="240" height="25" fill="#D32F2F" rx="5"></rect>
-                        <text x="550" y="217" text-anchor="middle" fill="white" font-size="13" font-weight="bold">settings (PowerScale)</text>
-                        <text x="440" y="240" font-size="10" font-weight="bold">id, user_id (FK)</text>
-                        <text x="440" y="255" font-size="10" font-weight="bold">machine_model_id (FK)</text>
-                        <text x="440" y="270" font-size="10" font-weight="bold">material_id (FK)</text>
-                        <text x="440" y="285" font-size="10" font-weight="bold">operation_id (FK)</text>
-                        <text x="440" y="300" font-size="10">power, speed, passes</text>
-                        <text x="440" y="315" font-size="10">frequency, dpi</text>
-                        <text x="440" y="330" font-size="10">notes</text>
-                        <text x="440" y="345" font-size="9" fill="#888">UNIQUE(user, model, material, op)</text>
+                        <rect x="310" y="50" width="280" height="310" fill="#FFEBEE" stroke="#D32F2F" stroke-width="3" rx="5"></rect>
+                        <rect x="310" y="50" width="280" height="25" fill="#D32F2F" rx="5"></rect>
+                        <text x="450" y="67" text-anchor="middle" fill="white" font-size="13" font-weight="bold">material_settings (PowerScale)</text>
+                        <text x="320" y="90" font-size="10" font-weight="bold">id (PK, BIGINT)</text>
+                        <text x="320" y="105" font-size="10" font-weight="bold">user_id (FK → users)</text>
+                        <text x="320" y="120" font-size="10" font-weight="bold">material_id (FK → materials)</text>
+                        <text x="320" y="140" font-size="10">laser_type (ENUM: Diode, CO2, Fiber, UV, Infrared)</text>
+                        <text x="320" y="155" font-size="10">machine_wattage (INT)</text>
+                        <text x="320" y="170" font-size="10">marking_type (ENUM: Line, Fill, Offset Fill, Image, 3D Engrave)</text>
+                        <text x="320" y="190" font-size="10">speed (DECIMAL, mm/sec)</text>
+                        <text x="320" y="205" font-size="10">min_power (DECIMAL)</text>
+                        <text x="320" y="220" font-size="10">max_power (DECIMAL)</text>
+                        <text x="320" y="235" font-size="10">passes (INT)</text>
+                        <text x="320" y="250" font-size="10">interval_mm (DECIMAL)</text>
+                        <text x="320" y="265" font-size="10">z_offset (DECIMAL)</text>
+                        <text x="320" y="280" font-size="10">air_assist (BOOLEAN)</text>
+                        <text x="320" y="295" font-size="10">votes_score (INT, cached aggregate)</text>
+                        <text x="320" y="310" font-size="10">created_at (TIMESTAMP)</text>
                     </g>
 
                     <!-- Votes -->
                     <g>
-                        <rect x="530" y="420" width="180" height="110" fill="#FFF8E1" stroke="#FFA000" stroke-width="2" rx="5"></rect>
-                        <rect x="530" y="420" width="180" height="25" fill="#FFA000" rx="5"></rect>
-                        <text x="620" y="437" text-anchor="middle" fill="white" font-size="12" font-weight="bold">votes</text>
-                        <text x="540" y="460" font-size="10" font-weight="bold">id, user_id (FK)</text>
-                        <text x="540" y="475" font-size="10" font-weight="bold">setting_id (FK)</text>
-                        <text x="540" y="490" font-size="10">value (+1 or -1)</text>
-                        <text x="540" y="510" font-size="9" fill="#888">UNIQUE(user_id, setting_id)</text>
+                        <rect x="660" y="100" width="160" height="130" fill="#FFF8E1" stroke="#FFA000" stroke-width="2" rx="5"></rect>
+                        <rect x="660" y="100" width="160" height="25" fill="#FFA000" rx="5"></rect>
+                        <text x="740" y="117" text-anchor="middle" fill="white" font-size="12" font-weight="bold">votes</text>
+                        <text x="670" y="140" font-size="10" font-weight="bold">id (PK, BIGINT)</text>
+                        <text x="670" y="155" font-size="10" font-weight="bold">user_id (FK → users)</text>
+                        <text x="670" y="170" font-size="10" font-weight="bold">setting_id (FK → material_settings)</text>
+                        <text x="670" y="185" font-size="10">vote_value (INT: +1 or -1)</text>
+                        <text x="670" y="205" font-size="9" fill="#888">UNIQUE(user_id, setting_id)</text>
                     </g>
 
-                    <!-- FK arrows to settings -->
-                    <path d="M 190 220 L 430 240" stroke="#D32F2F" stroke-width="1.5" fill="none" marker-end="url(#fk-arrow-red)"></path>
-                    <path d="M 410 230 L 430 260" stroke="#D32F2F" stroke-width="1.5" fill="none" marker-end="url(#fk-arrow-red)"></path>
-                    <path d="M 550 140 L 550 200" stroke="#D32F2F" stroke-width="1.5" fill="none" marker-end="url(#fk-arrow-red)"></path>
-                    <path d="M 750 120 L 650 200" stroke="#D32F2F" stroke-width="1.5" fill="none" marker-end="url(#fk-arrow-red)"></path>
-
-                    <!-- FK arrow settings to votes -->
-                    <path d="M 570 370 L 600 420" stroke="#FFA000" stroke-width="1.5" fill="none" marker-end="url(#fk-arrow)"></path>
+                    <!-- FK arrows -->
+                    <path d="M 230 95 L 310 95" stroke="#D32F2F" stroke-width="1.5" fill="none" marker-end="url(#fk-arrow-red)"></path>
+                    <path d="M 230 280 L 310 135" stroke="#D32F2F" stroke-width="1.5" fill="none" marker-end="url(#fk-arrow-red)"></path>
+                    <path d="M 590 165 L 660 165" stroke="#FFA000" stroke-width="1.5" fill="none" marker-end="url(#fk-arrow)"></path>
 
                     <defs>
                         <marker id="fk-arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
@@ -752,24 +797,19 @@ type SearchSettingsParams struct {
                     </tr>
                 </thead>
                 <tbody>
-                    <tr><td><strong>users</strong></td><td>User accounts and auth</td><td>id, username, email, password_hash, display_name</td></tr>
-                    <tr><td><strong>machine_brands</strong></td><td>Laser machine manufacturers</td><td>id, name, slug</td></tr>
-                    <tr><td><strong>machine_models</strong></td><td>Specific machine models</td><td>id, brand_id (FK), name, laser_type, wattage</td></tr>
-                    <tr><td><strong>material_categories</strong></td><td>Material groupings</td><td>id, name (Wood, Acrylic, etc.)</td></tr>
-                    <tr><td><strong>materials</strong></td><td>Specific materials</td><td>id, category_id (FK), name, slug</td></tr>
-                    <tr><td><strong>material_aliases</strong></td><td>Alternative names for materials</td><td>id, material_id (FK), alias</td></tr>
-                    <tr><td><strong>operations</strong></td><td>Laser operations</td><td>id, name (Cut, Engrave, Score, etc.)</td></tr>
-                    <tr><td><strong>settings</strong></td><td>Core PowerScale data</td><td>id, user_id, machine_model_id, material_id, operation_id, power, speed, passes, dpi, notes</td></tr>
-                    <tr><td><strong>votes</strong></td><td>Community validation</td><td>id, user_id, setting_id, value (+1/-1)</td></tr>
+                    <tr><td><strong>users</strong></td><td>User accounts and auth</td><td>id, email (unique), password_hash, display_name, created_at</td></tr>
+                    <tr><td><strong>materials</strong></td><td>Canonical material taxonomy</td><td>id, name, thickness_mm, category (Wood, Acrylic, Metal, etc.)</td></tr>
+                    <tr><td><strong>material_settings</strong></td><td>Core PowerScale data</td><td>id, user_id (FK), material_id (FK), laser_type (ENUM), machine_wattage, marking_type (ENUM), speed, min_power, max_power, passes, interval_mm, z_offset, air_assist, votes_score</td></tr>
+                    <tr><td><strong>votes</strong></td><td>Community validation</td><td>id, user_id (FK), setting_id (FK), vote_value (+1/-1)</td></tr>
                 </tbody>
             </table>
 
             <h3>Key Relationships</h3>
             <ul>
-                <li><strong>Settings</strong> is the central junction table — it references users, machine_models, materials, and operations</li>
-                <li><strong>Votes</strong> link users to settings with a unique constraint (one vote per user per setting)</li>
-                <li><strong>Material aliases</strong> power the normalization engine — "1/8 Inch Ply" maps to "3mm Birch Plywood"</li>
-                <li><strong>Machine models</strong> cascade from brands, with laser_type (CO2/Diode/Fiber) and wattage</li>
+                <li><strong>material_settings</strong> is the central table — it references users and materials, with ENUM fields for laser_type and marking_type</li>
+                <li><strong>votes</strong> link users to settings with a unique constraint (one vote per user per setting)</li>
+                <li><strong>votes_score</strong> is a cached aggregate on material_settings for fast sorting</li>
+                <li><strong>materials</strong> provide a canonical taxonomy — material normalization maps user submissions to standardized entries</li>
             </ul>
         </section>
 
@@ -807,7 +847,7 @@ npm run dev       # Runs on localhost:5173</code></pre>
                 <li><code>npm run build</code> — Creates optimized static files in <code>dist/</code></li>
                 <li><code>go build -o server</code> — Compiles Go binary</li>
                 <li><code>git push</code> — Push to GitHub</li>
-                <li>Deploy to server, configure NGINX, restart services</li>
+                <li>Deploy to AWS Lightsail server, configure NGINX, restart services</li>
             </ol>
         </section>
 
@@ -847,15 +887,28 @@ npm run dev       # Runs on localhost:5173</code></pre>
                 </ul>
             </div>
 
+            <h3>JWT / Authentication Errors</h3>
+            <div class="warning">
+                <strong>Problem:</strong> "Unauthorized" responses on protected endpoints
+                <br><br>
+                <strong>Solution:</strong>
+                <ul>
+                    <li>Check JWT cookie is being set (browser DevTools → Application → Cookies)</li>
+                    <li>Verify JWT secret is consistent between token creation and validation</li>
+                    <li>Check cookie path and domain settings</li>
+                    <li>Ensure <code>credentials: 'include'</code> is set on fetch requests</li>
+                </ul>
+            </div>
+
             <h3>Empty API Responses</h3>
             <div class="warning">
                 <strong>Problem:</strong> API returns 200 OK but empty data
                 <br><br>
                 <strong>Solution:</strong>
                 <ul>
-                    <li>Check if seed data was loaded: <code>SELECT COUNT(*) FROM settings;</code></li>
+                    <li>Check if seed data was loaded: <code>SELECT COUNT(*) FROM material_settings;</code></li>
                     <li>Verify filter params are being parsed correctly in Go</li>
-                    <li>Check <code>sql.NullInt32</code> Valid flags — invalid means "no filter"</li>
+                    <li>Check <code>sql.NullString</code> / <code>sql.NullInt32</code> Valid flags</li>
                 </ul>
             </div>
         </section>
@@ -863,17 +916,19 @@ npm run dev       # Runs on localhost:5173</code></pre>
         <section>
             <h2>Key Takeaways</h2>
             <ul>
-                <li><strong>Separation of Concerns:</strong> React handles UI, Go handles API logic, MySQL stores data, sqlc bridges Go and MySQL, NGINX routes traffic</li>
-                <li><strong>Vote-Driven Ranking:</strong> The LEFT JOIN + COALESCE pattern aggregates votes in the same query that fetches settings</li>
-                <li><strong>Optional Filtering:</strong> sqlc's <code>sqlc.narg</code> enables powerful optional WHERE clauses without multiple query variants</li>
+                <li><strong>Separation of Concerns:</strong> React handles UI + .clb parsing, Go handles API logic + .clb generation, MySQL stores data, sqlc bridges Go and MySQL, NGINX routes traffic</li>
+                <li><strong>LightBurn Integration:</strong> Native .clb import/export bridges web and desktop laser software workflows</li>
+                <li><strong>Vote-Driven Ranking:</strong> Cached votes_score on material_settings enables fast sorting without JOIN aggregation on every query</li>
+                <li><strong>Faceted Discovery:</strong> ENUM-based filtering (laser_type, marking_type) with optional WHERE clauses via sqlc.narg</li>
                 <li><strong>Type Safety:</strong> sqlc ensures Go code and database schema stay in sync at compile time</li>
+                <li><strong>JWT Security:</strong> HTTP-only cookies prevent XSS token theft; bcrypt secures passwords</li>
                 <li><strong>API-First Design:</strong> Well-defined REST endpoints enable future clients (mobile app, CLI tool, etc.)</li>
             </ul>
         </section>
 
         <footer style="margin-top: 60px; padding: 20px; background: #fff7ed; text-align: center; border-top: 3px solid #f97316;">
-            <p style="margin: 0; color: #666;">Created for the Laserscribe / PowerScale Project</p>
-            <p style="margin: 5px 0 0 0; color: #999; font-size: 0.9em;">React 19 + Vite 7 + Tailwind v4 + Go + Gin + sqlc + MySQL</p>
+            <p style="margin: 0; color: #666;">Created for the Laserscribed / PowerScale Project</p>
+            <p style="margin: 5px 0 0 0; color: #999; font-size: 0.9em;">React + Vite + Tailwind v4 + Go + Gin + sqlc + MySQL + JWT</p>
         </footer>
     </div>
 </body></html>
