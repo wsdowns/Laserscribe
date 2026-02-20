@@ -18,8 +18,8 @@ function Sidebar({ user, onLogout }) {
       <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-ls-darker/95 backdrop-blur border-b border-ls-border">
         <div className="flex items-center justify-between px-4 h-16">
           <Link to="/" className="flex items-center gap-2">
-            <span className="text-xl font-bold text-ls-accent">Laser</span>
-            <span className="text-xl font-bold text-ls-text">scribe</span>
+            <span className="text-xl font-bold text-white">Laser</span>
+            <span className="text-xl font-bold text-ls-accent">scribed</span>
           </Link>
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
@@ -58,8 +58,8 @@ function Sidebar({ user, onLogout }) {
               </svg>
             </div>
             <div>
-              <span className="text-lg font-bold text-ls-accent">Laser</span>
-              <span className="text-lg font-bold text-ls-text">scribe</span>
+              <span className="text-lg font-bold text-white">Laser</span>
+              <span className="text-lg font-bold text-ls-accent">scribed</span>
             </div>
           </div>
 
