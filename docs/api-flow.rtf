@@ -1,0 +1,157 @@
+{\rtf1\ansi\deff0
+{\fonttbl{\f0\fswiss Helvetica;}{\f1\fmodern Courier New;}}
+{\colortbl;\red0\green0\blue0;\red0\green0\blue255;\red100\green100\blue100;}
+
+\f0\fs28\b API Request Flow: GET /api/settings?machine_model_id=1\b0\fs24\par
+\par
+This document explains what happens when the frontend searches for laser settings on the PowerScale page.\par
+\par
+
+\fs26\b Overview\b0\fs24\par
+\par
+Frontend (React) \u8594 nginx (reverse proxy) \u8594 Go Backend (Gin) \u8594 MySQL (via sqlc) \u8594 JSON Response\par
+\par
+
+\fs26\b Step-by-Step Flow\b0\fs24\par
+\par
+
+\fs24\b 1. Frontend Makes Request\b0\par
+\par
+\b File:\b  frontend/src/pages/SearchPage.jsx\par
+\par
+\f1\fs20
+const \{ data: settings \} = useQuery(\{\par
+  queryKey: ['settings', filters.machineModelId, filters.materialId, filters.operationId],\par
+  queryFn: () => fetch(`/api/settings?$\{queryParams\}`).then(r => r.json()),\par
+  enabled: hasFilters,\par
+\})\par
+\f0\fs24\par
+\bullet  User selects filters (brand, model, material, operation) on the SearchPage\par
+\bullet  TanStack Query builds the request with query parameters\par
+\bullet  fetch('/api/settings?machine_model_id=1') sends HTTP GET request\par
+\bullet  Request goes to the same origin (e.g., https://laserscribe.io)\par
+\par
+
+\b 2. nginx Receives Request\b0\par
+\par
+\b Config:\b  /etc/nginx/sites-available/default\par
+\par
+\f1\fs20
+location /api \{\par
+    proxy_pass http://127.0.0.1:8080;\par
+    proxy_http_version 1.1;\par
+    proxy_set_header Host $host;\par
+    proxy_set_header X-Real-IP $remote_addr;\par
+\}\par
+\f0\fs24\par
+\bullet  nginx listens on port 443 (HTTPS)\par
+\bullet  Matches /api location block\par
+\bullet  Proxies request to Go backend on localhost:8080\par
+\par
+
+\b 3. Go Backend Handles Request\b0\par
+\par
+\b File:\b  backend/main.go\par
+\par
+\b Route Registration:\b\par
+\f1\fs20
+r.GET("/api/settings", searchSettingsHandler)\par
+\f0\fs24\par
+\bullet  Gin router matches GET /api/settings\par
+\bullet  Calls searchSettingsHandler function\par
+\par
+\b Handler Function:\b\par
+\f1\fs20
+func searchSettingsHandler(c *gin.Context) \{\par
+    params := db.SearchSettingsParams\{\}\par
+    if v := c.Query("machine_model_id"); v != "" \{\par
+        id, _ := strconv.Atoi(v)\par
+        params.MachineModelID = sql.NullInt32\{Int32: int32(id), Valid: true\}\par
+    \}\par
+    settings, err := queries.SearchSettings(c.Request.Context(), params)\par
+    c.JSON(http.StatusOK, settings)\par
+\}\par
+\f0\fs24\par
+\bullet  Parses optional query parameters (machine_model_id, material_id, operation_id)\par
+\bullet  Builds sqlc params with sql.NullInt32 for optional filtering\par
+\bullet  Calls sqlc-generated SearchSettings function\par
+\par
+
+\b 4. sqlc Executes Database Query\b0\par
+\par
+\b File:\b  backend/db/queries.sql\par
+\par
+\f1\fs20
+SELECT s.*, u.username, mm.name as model_name, mb.name as brand_name,\par
+       mat.name as material_name, op.name as operation_name,\par
+       COALESCE(SUM(v.value), 0) as vote_score\par
+FROM settings s\par
+JOIN users u ON s.user_id = u.id\par
+JOIN machine_models mm ON s.machine_model_id = mm.id\par
+JOIN machine_brands mb ON mm.brand_id = mb.id\par
+JOIN materials mat ON s.material_id = mat.id\par
+JOIN operations op ON s.operation_id = op.id\par
+LEFT JOIN votes v ON v.setting_id = s.id\par
+WHERE (sqlc.narg(machine_model_id) IS NULL\par
+       OR s.machine_model_id = sqlc.narg(machine_model_id))\par
+GROUP BY s.id\par
+ORDER BY vote_score DESC\par
+\f0\fs24\par
+\bullet  6-table JOIN to denormalize setting data in a single query\par
+\bullet  sqlc.narg enables optional filtering (NULL = no filter)\par
+\bullet  LEFT JOIN on votes to compute aggregate vote score\par
+\bullet  Results sorted by vote_score descending (best settings first)\par
+\par
+
+\b 5. Response Returns to Frontend\b0\par
+\par
+\b JSON Response:\b\par
+\f1\fs20
+[\par
+  \{\par
+    "ID": 1,\par
+    "BrandName": "xTool",\par
+    "ModelName": "xTool D1 Pro 10W",\par
+    "MaterialName": "3mm Birch Plywood",\par
+    "OperationName": "Cut",\par
+    "Power": 100,\par
+    "Speed": 3,\par
+    "Passes": 2,\par
+    "VoteScore": 5,\par
+    "Notes": "Clean cut through 3mm birch. Two passes recommended."\par
+  \},\par
+  ...\par
+]\par
+\f0\fs24\par
+\bullet  Go backend sends JSON array to nginx\par
+\bullet  nginx forwards to browser\par
+\bullet  TanStack Query caches the response\par
+\bullet  SearchPage renders SettingCard components for each result\par
+\bullet  Users can vote on settings, which triggers POST /api/settings/:id/vote\par
+\par
+
+\fs26\b Key Files Summary\b0\fs24\par
+\par
+\b Frontend:\b  frontend/src/pages/SearchPage.jsx - Builds filters, fetches settings\par
+\b Components:\b  frontend/src/components/SearchFilters.jsx - Cascading filter dropdowns\par
+\b Proxy:\b  /etc/nginx/sites-available/default - Routes /api to Go backend\par
+\b Backend:\b  backend/main.go - Parses params, calls sqlc, returns JSON\par
+\b Queries:\b  backend/db/queries.sql - SQL with JOINs and optional filters\par
+\par
+
+\fs26\b Testing the Endpoint\b0\fs24\par
+\par
+\f1\fs20
+# All settings (no filter)\par
+curl http://localhost:8080/api/settings/top\par
+\par
+# Settings for a specific machine model\par
+curl http://localhost:8080/api/settings?machine_model_id=1\par
+\par
+# Settings for a machine + material combination\par
+curl "http://localhost:8080/api/settings?machine_model_id=1&material_id=1"\par
+\par
+# Single setting detail with vote score\par
+curl http://localhost:8080/api/settings/1\par
+\f0\fs24\par
+}

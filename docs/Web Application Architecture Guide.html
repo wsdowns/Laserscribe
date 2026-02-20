@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laserscribe Architecture Guide</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        header {
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 50%, #c2410c 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+            margin: -20px -20px 40px -20px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        h2 {
+            color: #f97316;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #f97316;
+            font-size: 1.8em;
+        }
+
+        h3 {
+            color: #c2410c;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+        }
+
+        h4 {
+            color: #555;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        p {
+            margin-bottom: 15px;
+            text-align: justify;
+        }
+
+        ul, ol {
+            margin-left: 30px;
+            margin-bottom: 15px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        .diagram-container {
+            background: #f9f9f9;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 30px 0;
+            text-align: center;
+        }
+
+        .diagram-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #f97316;
+            margin-bottom: 15px;
+        }
+
+        svg {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .component-box {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .component-box:hover {
+            opacity: 0.8;
+        }
+
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+
+        pre code {
+            background: transparent;
+            color: #f8f8f2;
+            padding: 0;
+        }
+
+        .highlight {
+            background: #fff7ed;
+            padding: 15px;
+            border-left: 4px solid #f97316;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .note {
+            background: #d1ecf1;
+            padding: 15px;
+            border-left: 4px solid #17a2b8;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .warning {
+            background: #f8d7da;
+            padding: 15px;
+            border-left: 4px solid #dc3545;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background: #f97316;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+
+        .toc {
+            background: #fff7ed;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 30px 0;
+        }
+
+        .toc h3 {
+            margin-top: 0;
+            color: #f97316;
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc a {
+            color: #f97316;
+            text-decoration: none;
+        }
+
+        .toc a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Laserscribe Architecture Guide</h1>
+            <p style="font-size: 1.2em; margin-top: 10px;">A Complete Guide to React, Go, MySQL, sqlc, NGINX, and GitHub</p>
+        </header>
+
+        <section id="introduction">
+            <h2>Introduction</h2>
+            <p>Laserscribe is a community-driven platform for laser engraving and cutting settings. The core product is <strong>PowerScale</strong> — a crowd-sourced, vote-validated material settings database. This guide explains how each component of the full-stack application fits together and how data flows from the user's browser to the database and back.</p>
+
+            <div class="highlight">
+                <strong>What is PowerScale?</strong> Users look up laser settings by machine and material, contribute their own tested settings, and vote on accuracy. The goal: stop wasting material dialing in settings. Settings are ranked by community votes — the best float to the top.
+            </div>
+        </section>
+
+        <div class="toc">
+            <h3>Table of Contents</h3>
+            <ul>
+                <li><a href="#system-overview">System Overview</a></li>
+                <li><a href="#components">The Components Explained</a></li>
+                <li><a href="#data-flow">How It All Works Together</a></li>
+                <li><a href="#database">Database Architecture</a></li>
+                <li><a href="#development">Development Workflow</a></li>
+                <li><a href="#troubleshooting">Common Issues and Solutions</a></li>
+            </ul>
+        </div>
+
+        <section id="system-overview">
+            <h2>System Overview</h2>
+            <p>Here's how all the components connect in the Laserscribe application:</p>
+
+            <div class="diagram-container">
+                <div class="diagram-title">Complete System Architecture</div>
+                <svg viewBox="0 0 800 900" xmlns="http://www.w3.org/2000/svg">
+                    <!-- User/Browser -->
+                    <g class="component-box">
+                        <rect x="300" y="20" width="200" height="80" fill="#f97316" rx="5" stroke="#ea580c" stroke-width="2"></rect>
+                        <text x="400" y="50" text-anchor="middle" fill="white" font-size="16" font-weight="bold">User's Browser</text>
+                        <text x="400" y="70" text-anchor="middle" fill="white" font-size="14">React Application</text>
+                        <text x="400" y="88" text-anchor="middle" fill="white" font-size="12">Runs Client-Side</text>
+                    </g>
+
+                    <!-- Arrow to NGINX -->
+                    <path d="M 400 100 L 400 160" stroke="#333" stroke-width="2" fill="none" marker-end="url(#arrowhead)"></path>
+                    <text x="420" y="135" font-size="12" fill="#666">HTTPS Request</text>
+
+                    <!-- NGINX -->
+                    <g class="component-box">
+                        <rect x="300" y="160" width="200" height="80" fill="#009688" rx="5" stroke="#00695C" stroke-width="2"></rect>
+                        <text x="400" y="190" text-anchor="middle" fill="white" font-size="16" font-weight="bold">NGINX</text>
+                        <text x="400" y="210" text-anchor="middle" fill="white" font-size="14">Reverse Proxy</text>
+                        <text x="400" y="228" text-anchor="middle" fill="white" font-size="12">Routes Traffic</text>
+                    </g>
+
+                    <!-- Arrow to Go Backend -->
+                    <path d="M 500 200 L 580 200 L 580 320 L 500 320" stroke="#333" stroke-width="2" fill="none" marker-end="url(#arrowhead)"></path>
+                    <text x="590" y="265" font-size="12" fill="#666">/api/* requests</text>
+
+                    <!-- Arrow to Static Files -->
+                    <path d="M 300 200 L 220 200 L 220 320 L 300 320" stroke="#333" stroke-width="2" fill="none" marker-end="url(#arrowhead)"></path>
+                    <text x="120" y="265" font-size="12" fill="#666">Static files (HTML/JS/CSS)</text>
+
+                    <!-- Go Backend -->
+                    <g class="component-box">
+                        <rect x="300" y="320" width="200" height="100" fill="#00BCD4" rx="5" stroke="#0097A7" stroke-width="2"></rect>
+                        <text x="400" y="350" text-anchor="middle" fill="white" font-size="16" font-weight="bold">Go Backend (Gin)</text>
+                        <text x="400" y="370" text-anchor="middle" fill="white" font-size="14">API Server</text>
+                        <text x="400" y="388" text-anchor="middle" fill="white" font-size="12">Port 8080</text>
+                        <text x="400" y="408" text-anchor="middle" fill="white" font-size="12">Auth + Business Logic</text>
+                    </g>
+
+                    <!-- Arrow to sqlc -->
+                    <path d="M 400 420 L 400 480" stroke="#333" stroke-width="2" fill="none" marker-end="url(#arrowhead)"></path>
+                    <text x="420" y="455" font-size="12" fill="#666">Type-safe queries</text>
+
+                    <!-- sqlc Layer -->
+                    <g class="component-box">
+                        <rect x="300" y="480" width="200" height="80" fill="#FF9800" rx="5" stroke="#F57C00" stroke-width="2"></rect>
+                        <text x="400" y="510" text-anchor="middle" fill="white" font-size="16" font-weight="bold">sqlc</text>
+                        <text x="400" y="530" text-anchor="middle" fill="white" font-size="14">Query Generator</text>
+                        <text x="400" y="548" text-anchor="middle" fill="white" font-size="12">Type-safe Database Access</text>
+                    </g>
+
+                    <!-- Arrow to MySQL -->
+                    <path d="M 400 560 L 400 620" stroke="#333" stroke-width="2" fill="none" marker-end="url(#arrowhead)"></path>
+                    <text x="420" y="595" font-size="12" fill="#666">SQL queries</text>
+
+                    <!-- MySQL Database -->
+                    <g class="component-box">
+                        <rect x="300" y="620" width="200" height="100" fill="#3F51B5" rx="5" stroke="#303F9F" stroke-width="2"></rect>
+                        <text x="400" y="650" text-anchor="middle" fill="white" font-size="16" font-weight="bold">MySQL Database</text>
+                        <text x="400" y="670" text-anchor="middle" fill="white" font-size="14">Persistent Storage</text>
+                        <text x="400" y="688" text-anchor="middle" fill="white" font-size="12">Settings, Votes, Users</text>
+                        <text x="400" y="706" text-anchor="middle" fill="white" font-size="12">Machines, Materials</text>
+                    </g>
+
+                    <!-- GitHub -->
+                    <g class="component-box">
+                        <rect x="50" y="400" width="180" height="80" fill="#24292e" rx="5" stroke="#000" stroke-width="2"></rect>
+                        <text x="140" y="430" text-anchor="middle" fill="white" font-size="16" font-weight="bold">GitHub</text>
+                        <text x="140" y="450" text-anchor="middle" fill="white" font-size="14">Source Control</text>
+                        <text x="140" y="468" text-anchor="middle" fill="white" font-size="12">Version Management</text>
+                    </g>
+
+                    <!-- Arrow from GitHub to Go -->
+                    <path d="M 230 440 L 300 380" stroke="#333" stroke-width="2" fill="none" marker-end="url(#arrowhead)" stroke-dasharray="5,5"></path>
+                    <text x="240" y="405" font-size="12" fill="#666">Code Push/Pull</text>
+
+                    <!-- AWS/Server Container -->
+                    <rect x="270" y="140" width="260" height="600" fill="none" stroke="#f97316" stroke-width="3" stroke-dasharray="10,5" rx="10"></rect>
+                    <text x="400" y="750" text-anchor="middle" fill="#f97316" font-size="14" font-weight="bold">Production Server</text>
+
+                    <!-- Node.js (Development Only) -->
+                    <g class="component-box">
+                        <rect x="570" y="400" width="180" height="80" fill="#68A063" rx="5" stroke="#3C6E3C" stroke-width="2"></rect>
+                        <text x="660" y="425" text-anchor="middle" fill="white" font-size="16" font-weight="bold">Node.js</text>
+                        <text x="660" y="445" text-anchor="middle" fill="white" font-size="14">Build Tool (Vite)</text>
+                        <text x="660" y="463" text-anchor="middle" fill="white" font-size="12" font-style="italic">Development Only</text>
+                    </g>
+
+                    <!-- Arrow markers -->
+                    <defs>
+                        <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                            <polygon points="0 0, 10 3, 0 6" fill="#333"></polygon>
+                        </marker>
+                    </defs>
+
+                    <!-- Legend -->
+                    <g transform="translate(50, 780)">
+                        <text x="0" y="0" font-size="14" font-weight="bold" fill="#333">Legend:</text>
+                        <rect x="0" y="10" width="20" height="20" fill="#f97316" rx="2"></rect>
+                        <text x="25" y="25" font-size="12" fill="#666">Frontend (Client)</text>
+                        <rect x="150" y="10" width="20" height="20" fill="#00BCD4" rx="2"></rect>
+                        <text x="175" y="25" font-size="12" fill="#666">Backend (Server)</text>
+                        <rect x="300" y="10" width="20" height="20" fill="#3F51B5" rx="2"></rect>
+                        <text x="325" y="25" font-size="12" fill="#666">Database</text>
+                        <rect x="450" y="10" width="20" height="20" fill="#009688" rx="2"></rect>
+                        <text x="475" y="25" font-size="12" fill="#666">Infrastructure</text>
+                    </g>
+                </svg>
+            </div>
+        </section>
+
+        <section id="components">
+            <h2>The Components Explained</h2>
+
+            <h3>1. React Frontend (The User Interface)</h3>
+            <p><strong>What it is:</strong> React 19 is a JavaScript library for building user interfaces. It creates the web pages that users see and interact with in their browser.</p>
+
+            <p><strong>What it does in Laserscribe:</strong></p>
+            <ul>
+                <li>Displays the PowerScale search interface with cascading filters (brand → model → material → operation)</li>
+                <li>Renders setting cards with power, speed, passes, and vote scores</li>
+                <li>Handles user interactions (voting, contributing settings, authentication)</li>
+                <li>Makes requests to the backend API using TanStack Query for caching and state management</li>
+                <li>Provides a responsive dark-themed UI with sidebar navigation</li>
+            </ul>
+
+            <p><strong>Key technologies:</strong></p>
+            <ul>
+                <li><strong>Vite 7</strong> — Lightning-fast build tool and dev server</li>
+                <li><strong>Tailwind CSS v4</strong> — Utility-first styling with custom theme colors</li>
+                <li><strong>TanStack Query v5</strong> — Data fetching, caching, and synchronization</li>
+                <li><strong>React Router v7</strong> — Client-side page navigation</li>
+            </ul>
+
+            <h3>2. Go Backend with Gin Framework (The API Server)</h3>
+            <p><strong>What it is:</strong> Go is a programming language that runs on the server. The Laserscribe backend uses the Gin framework to create a REST API that the React frontend calls.</p>
+
+            <p><strong>What it does:</strong></p>
+            <ul>
+                <li>Handles 16+ API endpoints for settings, machines, materials, votes, and auth</li>
+                <li>Authenticates users with bcrypt password hashing</li>
+                <li>Connects to MySQL using sqlc-generated type-safe code</li>
+                <li>Validates data and enforces business rules (one setting per user/machine/material/operation combo)</li>
+                <li>Computes vote scores via SQL aggregation</li>
+            </ul>
+
+            <p><strong>API endpoints:</strong></p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Method</th>
+                        <th>Endpoint</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>POST</td><td><code>/api/register</code></td><td>User registration</td></tr>
+                    <tr><td>POST</td><td><code>/api/login</code></td><td>User login</td></tr>
+                    <tr><td>GET</td><td><code>/api/brands</code></td><td>List machine brands</td></tr>
+                    <tr><td>GET</td><td><code>/api/brands/:id/models</code></td><td>Models for a brand</td></tr>
+                    <tr><td>GET</td><td><code>/api/materials</code></td><td>List/search materials</td></tr>
+                    <tr><td>GET</td><td><code>/api/operations</code></td><td>List operations</td></tr>
+                    <tr><td>GET</td><td><code>/api/settings</code></td><td>Search settings (filtered)</td></tr>
+                    <tr><td>GET</td><td><code>/api/settings/top</code></td><td>Top-voted settings</td></tr>
+                    <tr><td>GET</td><td><code>/api/settings/:id</code></td><td>Single setting detail</td></tr>
+                    <tr><td>POST</td><td><code>/api/settings</code></td><td>Submit setting (auth required)</td></tr>
+                    <tr><td>PUT</td><td><code>/api/settings/:id</code></td><td>Edit own setting (auth required)</td></tr>
+                    <tr><td>DELETE</td><td><code>/api/settings/:id</code></td><td>Delete own setting (auth required)</td></tr>
+                    <tr><td>POST</td><td><code>/api/settings/:id/vote</code></td><td>Vote on setting (auth required)</td></tr>
+                </tbody>
+            </table>
+
+            <h3>3. MySQL Database (Persistent Data Storage)</h3>
+            <p><strong>What it is:</strong> MySQL is a relational database that stores all of Laserscribe's data in structured, related tables.</p>
+
+            <p><strong>What it stores:</strong></p>
+            <ul>
+                <li><strong>Users</strong> — accounts, credentials, display names</li>
+                <li><strong>Machine catalog</strong> — brands, models, laser types, wattages</li>
+                <li><strong>Material library</strong> — categories, materials, aliases for normalization</li>
+                <li><strong>Settings</strong> — the core PowerScale data (power, speed, passes, frequency, DPI, notes)</li>
+                <li><strong>Votes</strong> — community validation (+1/-1 per user per setting)</li>
+            </ul>
+
+            <h3>4. sqlc (Type-Safe Query Generator)</h3>
+            <p><strong>What it is:</strong> sqlc reads SQL queries and generates type-safe Go code. It ensures your Go code and database schema stay in sync at compile time.</p>
+
+            <div class="note">
+                <strong>Why sqlc?</strong> Instead of writing raw SQL strings in Go and manually mapping results to structs, sqlc automates this. If you rename a database column, your code won't compile until you fix all references — catching bugs before they hit production.
+            </div>
+
+            <p><strong>Example sqlc workflow:</strong></p>
+            <pre><code>-- queries.sql: You write SQL with annotations
+-- name: SearchSettings :many
+SELECT s.*, u.username, mm.name as model_name,
+       COALESCE(SUM(v.value), 0) as vote_score
+FROM settings s
+JOIN users u ON s.user_id = u.id
+JOIN machine_models mm ON s.machine_model_id = mm.id
+LEFT JOIN votes v ON v.setting_id = s.id
+WHERE (sqlc.narg(machine_model_id) IS NULL
+       OR s.machine_model_id = sqlc.narg(machine_model_id))
+GROUP BY s.id
+ORDER BY vote_score DESC;</code></pre>
+
+            <pre><code>// sqlc generates type-safe Go code:
+func (q *Queries) SearchSettings(ctx context.Context, arg SearchSettingsParams) ([]SearchSettingsRow, error)
+
+// With a typed params struct:
+type SearchSettingsParams struct {
+    MachineModelID sql.NullInt32
+    MaterialID     sql.NullInt32
+    OperationID    sql.NullInt32
+}</code></pre>
+
+            <h3>5. Node.js / Vite (Build Tool)</h3>
+            <p><strong>What it is:</strong> Node.js runs Vite, the build tool that bundles React code for production and provides the dev server with hot module replacement.</p>
+
+            <div class="warning">
+                <strong>IMPORTANT:</strong> Node.js runs during <em>development</em> and <em>build time</em> only. It does <strong>NOT</strong> run on your production server. Only the static files it creates are deployed.
+            </div>
+
+            <h3>6. NGINX (The Traffic Director)</h3>
+            <p><strong>What it is:</strong> NGINX is a web server and reverse proxy that acts as the front door for the application.</p>
+
+            <p><strong>What it does:</strong></p>
+            <ul>
+                <li>Receives ALL incoming requests from users' browsers</li>
+                <li>Handles SSL/TLS certificates (HTTPS encryption)</li>
+                <li>Routes API requests (<code>/api/*</code>) to the Go backend on port 8080</li>
+                <li>Serves React static files directly for page requests</li>
+            </ul>
+
+            <h3>7. GitHub (Source Control)</h3>
+            <p><strong>What it provides:</strong></p>
+            <ul>
+                <li>Version control — track every change to the codebase</li>
+                <li>Issue tracking — feature requests, bugs, and milestones</li>
+                <li>CI/CD pipelines via GitHub Actions</li>
+                <li>Backup of the entire codebase</li>
+            </ul>
+        </section>
+
+        <section id="data-flow">
+            <h2>How It All Works Together</h2>
+
+            <div class="diagram-container">
+                <div class="diagram-title">PowerScale Search Flow</div>
+                <svg viewBox="0 0 900 700" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Flow Steps -->
+                    <g>
+                        <circle cx="100" cy="50" r="30" fill="#f97316" stroke="#ea580c" stroke-width="2"></circle>
+                        <text x="100" y="55" text-anchor="middle" fill="white" font-size="20" font-weight="bold">1</text>
+                        <text x="150" y="55" font-size="14">User selects machine &amp; material filters</text>
+                    </g>
+                    <path d="M 100 80 L 100 130" stroke="#333" stroke-width="2" marker-end="url(#arrow2)"></path>
+
+                    <g>
+                        <circle cx="100" cy="150" r="30" fill="#009688" stroke="#00695C" stroke-width="2"></circle>
+                        <text x="100" y="155" text-anchor="middle" fill="white" font-size="20" font-weight="bold">2</text>
+                        <text x="150" y="155" font-size="14">NGINX receives request</text>
+                    </g>
+
+                    <path d="M 70 150 L 20 200 L 20 250" stroke="#333" stroke-width="2" marker-end="url(#arrow2)"></path>
+                    <text x="25" y="180" font-size="11" fill="#666">Static</text>
+                    <g>
+                        <circle cx="20" cy="270" r="20" fill="#FF9800" stroke="#F57C00" stroke-width="2"></circle>
+                        <text x="20" y="275" text-anchor="middle" fill="white" font-size="16" font-weight="bold">3a</text>
+                        <text x="50" y="275" font-size="12">Serve React files</text>
+                    </g>
+
+                    <path d="M 130 150 L 180 200 L 180 250" stroke="#333" stroke-width="2" marker-end="url(#arrow2)"></path>
+                    <text x="165" y="180" font-size="11" fill="#666">API</text>
+                    <g>
+                        <circle cx="180" cy="270" r="20" fill="#00BCD4" stroke="#0097A7" stroke-width="2"></circle>
+                        <text x="180" y="275" text-anchor="middle" fill="white" font-size="16" font-weight="bold">3b</text>
+                        <text x="210" y="275" font-size="12">Forward to Go backend</text>
+                    </g>
+
+                    <path d="M 180 290 L 180 340" stroke="#333" stroke-width="2" marker-end="url(#arrow2)"></path>
+                    <g>
+                        <circle cx="180" cy="360" r="20" fill="#00BCD4" stroke="#0097A7" stroke-width="2"></circle>
+                        <text x="180" y="365" text-anchor="middle" fill="white" font-size="16" font-weight="bold">4</text>
+                        <text x="210" y="365" font-size="12">Go parses filter params</text>
+                    </g>
+
+                    <path d="M 180 380 L 180 430" stroke="#333" stroke-width="2" marker-end="url(#arrow2)"></path>
+                    <g>
+                        <circle cx="180" cy="450" r="20" fill="#FF9800" stroke="#F57C00" stroke-width="2"></circle>
+                        <text x="180" y="455" text-anchor="middle" fill="white" font-size="16" font-weight="bold">5</text>
+                        <text x="210" y="455" font-size="12">Execute sqlc SearchSettings query</text>
+                    </g>
+
+                    <path d="M 180 470 L 180 520" stroke="#333" stroke-width="2" marker-end="url(#arrow2)"></path>
+                    <g>
+                        <circle cx="180" cy="540" r="20" fill="#3F51B5" stroke="#303F9F" stroke-width="2"></circle>
+                        <text x="180" y="545" text-anchor="middle" fill="white" font-size="16" font-weight="bold">6</text>
+                        <text x="210" y="545" font-size="12">6-table JOIN + vote aggregation</text>
+                    </g>
+
+                    <path d="M 200 540 L 250 540 L 250 360 L 200 360" stroke="#28a745" stroke-width="2" marker-end="url(#arrow-green)" stroke-dasharray="5,5"></path>
+                    <text x="260" y="450" font-size="11" fill="#28a745">Returns ranked data</text>
+
+                    <g>
+                        <circle cx="180" cy="620" r="20" fill="#28a745" stroke="#1e7e34" stroke-width="2"></circle>
+                        <text x="180" y="625" text-anchor="middle" fill="white" font-size="16" font-weight="bold">7</text>
+                        <text x="210" y="625" font-size="12">JSON settings to React → render SettingCards</text>
+                    </g>
+                    <path d="M 180 560 L 180 600" stroke="#28a745" stroke-width="2" marker-end="url(#arrow-green)" stroke-dasharray="5,5"></path>
+
+                    <!-- Code Examples -->
+                    <g transform="translate(350, 50)">
+                        <text x="0" y="0" font-size="14" font-weight="bold" fill="#333">Example: Search Settings for xTool D1 Pro</text>
+
+                        <rect x="0" y="10" width="500" height="220" fill="#f8f9fa" stroke="#ddd" stroke-width="1" rx="5"></rect>
+
+                        <text x="10" y="30" font-size="12" fill="#666" font-weight="bold">1. React (SearchPage.jsx):</text>
+                        <text x="10" y="48" font-size="11" font-family="monospace" fill="#333">fetch('/api/settings?machine_model_id=1')</text>
+                        <text x="10" y="63" font-size="11" font-family="monospace" fill="#333">  .then(r =&gt; r.json())</text>
+
+                        <text x="10" y="90" font-size="12" fill="#666" font-weight="bold">2. Go Backend (main.go):</text>
+                        <text x="10" y="108" font-size="11" font-family="monospace" fill="#333">params.MachineModelID = sql.NullInt32{</text>
+                        <text x="10" y="123" font-size="11" font-family="monospace" fill="#333">  Int32: 1, Valid: true}</text>
+                        <text x="10" y="138" font-size="11" font-family="monospace" fill="#333">settings, _ := queries.SearchSettings(ctx, params)</text>
+
+                        <text x="10" y="165" font-size="12" fill="#666" font-weight="bold">3. MySQL (via sqlc):</text>
+                        <text x="10" y="183" font-size="11" font-family="monospace" fill="#333">SELECT s.*, COALESCE(SUM(v.value), 0) as score</text>
+                        <text x="10" y="198" font-size="11" font-family="monospace" fill="#333">FROM settings s LEFT JOIN votes v ON ...</text>
+                        <text x="10" y="213" font-size="11" font-family="monospace" fill="#333">WHERE s.machine_model_id = 1 ORDER BY score DESC</text>
+                    </g>
+
+                    <defs>
+                        <marker id="arrow2" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                            <polygon points="0 0, 10 3, 0 6" fill="#333"></polygon>
+                        </marker>
+                        <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                            <polygon points="0 0, 10 3, 0 6" fill="#28a745"></polygon>
+                        </marker>
+                    </defs>
+                </svg>
+            </div>
+
+            <h3>Detailed Example: Loading the PowerScale Search Page</h3>
+            <ol>
+                <li><strong>Browser requests:</strong> <code>https://laserscribe.io/search</code></li>
+                <li><strong>NGINX receives request</strong>
+                    <ul>
+                        <li>Path is <code>/search</code> (not <code>/api/*</code>)</li>
+                        <li>Serves the React SPA: <code>index.html</code></li>
+                    </ul>
+                </li>
+                <li><strong>Browser loads React app</strong>
+                    <ul>
+                        <li>React Router renders SearchPage component</li>
+                        <li>TanStack Query fetches <code>/api/brands</code>, <code>/api/materials</code>, <code>/api/operations</code> for filter dropdowns</li>
+                    </ul>
+                </li>
+                <li><strong>User selects filters</strong>
+                    <ul>
+                        <li>Picks brand → triggers fetch for <code>/api/brands/1/models</code></li>
+                        <li>Picks model → TanStack Query fetches <code>/api/settings?machine_model_id=1</code></li>
+                    </ul>
+                </li>
+                <li><strong>Go backend processes request</strong>
+                    <ul>
+                        <li>Parses query params into SearchSettingsParams</li>
+                        <li>Calls sqlc: 6-table JOIN with optional WHERE clauses</li>
+                        <li>MySQL returns rows with vote aggregation</li>
+                        <li>Go serializes to JSON, sorted by vote score</li>
+                    </ul>
+                </li>
+                <li><strong>React renders results</strong>
+                    <ul>
+                        <li>SettingsTable maps over results</li>
+                        <li>Each SettingCard shows power/speed/passes + vote buttons</li>
+                        <li>Users can upvote/downvote (triggers POST to <code>/api/settings/:id/vote</code>)</li>
+                    </ul>
+                </li>
+            </ol>
+        </section>
+
+        <section id="database">
+            <h2>Database Architecture</h2>
+
+            <div class="diagram-container">
+                <div class="diagram-title">Database Schema (9 Tables)</div>
+                <svg viewBox="0 0 850 550" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Machine Brands -->
+                    <g>
+                        <rect x="30" y="30" width="160" height="90" fill="#E3F2FD" stroke="#1976D2" stroke-width="2" rx="5"></rect>
+                        <rect x="30" y="30" width="160" height="25" fill="#1976D2" rx="5"></rect>
+                        <text x="110" y="47" text-anchor="middle" fill="white" font-size="12" font-weight="bold">machine_brands</text>
+                        <text x="40" y="70" font-size="10" font-weight="bold">id</text>
+                        <text x="40" y="85" font-size="10">name, slug</text>
+                    </g>
+
+                    <!-- Machine Models -->
+                    <g>
+                        <rect x="30" y="160" width="160" height="110" fill="#E3F2FD" stroke="#1976D2" stroke-width="2" rx="5"></rect>
+                        <rect x="30" y="160" width="160" height="25" fill="#1976D2" rx="5"></rect>
+                        <text x="110" y="177" text-anchor="middle" fill="white" font-size="12" font-weight="bold">machine_models</text>
+                        <text x="40" y="200" font-size="10" font-weight="bold">id, brand_id (FK)</text>
+                        <text x="40" y="215" font-size="10">name, slug</text>
+                        <text x="40" y="230" font-size="10">laser_type (enum)</text>
+                        <text x="40" y="245" font-size="10">wattage</text>
+                    </g>
+
+                    <!-- Arrow brands to models -->
+                    <path d="M 110 120 L 110 160" stroke="#1976D2" stroke-width="2" fill="none" marker-end="url(#fk-arrow)"></path>
+
+                    <!-- Material Categories -->
+                    <g>
+                        <rect x="250" y="30" width="160" height="90" fill="#E8F5E9" stroke="#388E3C" stroke-width="2" rx="5"></rect>
+                        <rect x="250" y="30" width="160" height="25" fill="#388E3C" rx="5"></rect>
+                        <text x="330" y="47" text-anchor="middle" fill="white" font-size="12" font-weight="bold">material_categories</text>
+                        <text x="260" y="70" font-size="10" font-weight="bold">id</text>
+                        <text x="260" y="85" font-size="10">name</text>
+                    </g>
+
+                    <!-- Materials -->
+                    <g>
+                        <rect x="250" y="160" width="160" height="100" fill="#E8F5E9" stroke="#388E3C" stroke-width="2" rx="5"></rect>
+                        <rect x="250" y="160" width="160" height="25" fill="#388E3C" rx="5"></rect>
+                        <text x="330" y="177" text-anchor="middle" fill="white" font-size="12" font-weight="bold">materials</text>
+                        <text x="260" y="200" font-size="10" font-weight="bold">id, category_id (FK)</text>
+                        <text x="260" y="215" font-size="10">name, slug</text>
+                    </g>
+
+                    <!-- Arrow categories to materials -->
+                    <path d="M 330 120 L 330 160" stroke="#388E3C" stroke-width="2" fill="none" marker-end="url(#fk-arrow)"></path>
+
+                    <!-- Material Aliases -->
+                    <g>
+                        <rect x="250" y="300" width="160" height="90" fill="#E8F5E9" stroke="#388E3C" stroke-width="2" rx="5"></rect>
+                        <rect x="250" y="300" width="160" height="25" fill="#388E3C" rx="5"></rect>
+                        <text x="330" y="317" text-anchor="middle" fill="white" font-size="12" font-weight="bold">material_aliases</text>
+                        <text x="260" y="340" font-size="10" font-weight="bold">id, material_id (FK)</text>
+                        <text x="260" y="355" font-size="10">alias</text>
+                    </g>
+
+                    <!-- Arrow materials to aliases -->
+                    <path d="M 330 260 L 330 300" stroke="#388E3C" stroke-width="2" fill="none" marker-end="url(#fk-arrow)"></path>
+
+                    <!-- Users -->
+                    <g>
+                        <rect x="470" y="30" width="160" height="110" fill="#FFF3E0" stroke="#F57C00" stroke-width="2" rx="5"></rect>
+                        <rect x="470" y="30" width="160" height="25" fill="#F57C00" rx="5"></rect>
+                        <text x="550" y="47" text-anchor="middle" fill="white" font-size="12" font-weight="bold">users</text>
+                        <text x="480" y="70" font-size="10" font-weight="bold">id</text>
+                        <text x="480" y="85" font-size="10">username, email</text>
+                        <text x="480" y="100" font-size="10">password_hash</text>
+                        <text x="480" y="115" font-size="10">display_name</text>
+                    </g>
+
+                    <!-- Operations -->
+                    <g>
+                        <rect x="680" y="30" width="140" height="90" fill="#F3E5F5" stroke="#7B1FA2" stroke-width="2" rx="5"></rect>
+                        <rect x="680" y="30" width="140" height="25" fill="#7B1FA2" rx="5"></rect>
+                        <text x="750" y="47" text-anchor="middle" fill="white" font-size="12" font-weight="bold">operations</text>
+                        <text x="690" y="70" font-size="10" font-weight="bold">id</text>
+                        <text x="690" y="85" font-size="10">name</text>
+                    </g>
+
+                    <!-- Settings (center) -->
+                    <g>
+                        <rect x="430" y="200" width="240" height="170" fill="#FFEBEE" stroke="#D32F2F" stroke-width="3" rx="5"></rect>
+                        <rect x="430" y="200" width="240" height="25" fill="#D32F2F" rx="5"></rect>
+                        <text x="550" y="217" text-anchor="middle" fill="white" font-size="13" font-weight="bold">settings (PowerScale)</text>
+                        <text x="440" y="240" font-size="10" font-weight="bold">id, user_id (FK)</text>
+                        <text x="440" y="255" font-size="10" font-weight="bold">machine_model_id (FK)</text>
+                        <text x="440" y="270" font-size="10" font-weight="bold">material_id (FK)</text>
+                        <text x="440" y="285" font-size="10" font-weight="bold">operation_id (FK)</text>
+                        <text x="440" y="300" font-size="10">power, speed, passes</text>
+                        <text x="440" y="315" font-size="10">frequency, dpi</text>
+                        <text x="440" y="330" font-size="10">notes</text>
+                        <text x="440" y="345" font-size="9" fill="#888">UNIQUE(user, model, material, op)</text>
+                    </g>
+
+                    <!-- Votes -->
+                    <g>
+                        <rect x="530" y="420" width="180" height="110" fill="#FFF8E1" stroke="#FFA000" stroke-width="2" rx="5"></rect>
+                        <rect x="530" y="420" width="180" height="25" fill="#FFA000" rx="5"></rect>
+                        <text x="620" y="437" text-anchor="middle" fill="white" font-size="12" font-weight="bold">votes</text>
+                        <text x="540" y="460" font-size="10" font-weight="bold">id, user_id (FK)</text>
+                        <text x="540" y="475" font-size="10" font-weight="bold">setting_id (FK)</text>
+                        <text x="540" y="490" font-size="10">value (+1 or -1)</text>
+                        <text x="540" y="510" font-size="9" fill="#888">UNIQUE(user_id, setting_id)</text>
+                    </g>
+
+                    <!-- FK arrows to settings -->
+                    <path d="M 190 220 L 430 240" stroke="#D32F2F" stroke-width="1.5" fill="none" marker-end="url(#fk-arrow-red)"></path>
+                    <path d="M 410 230 L 430 260" stroke="#D32F2F" stroke-width="1.5" fill="none" marker-end="url(#fk-arrow-red)"></path>
+                    <path d="M 550 140 L 550 200" stroke="#D32F2F" stroke-width="1.5" fill="none" marker-end="url(#fk-arrow-red)"></path>
+                    <path d="M 750 120 L 650 200" stroke="#D32F2F" stroke-width="1.5" fill="none" marker-end="url(#fk-arrow-red)"></path>
+
+                    <!-- FK arrow settings to votes -->
+                    <path d="M 570 370 L 600 420" stroke="#FFA000" stroke-width="1.5" fill="none" marker-end="url(#fk-arrow)"></path>
+
+                    <defs>
+                        <marker id="fk-arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                            <polygon points="0 0, 10 3, 0 6" fill="#333"></polygon>
+                        </marker>
+                        <marker id="fk-arrow-red" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                            <polygon points="0 0, 10 3, 0 6" fill="#D32F2F"></polygon>
+                        </marker>
+                    </defs>
+                </svg>
+            </div>
+
+            <p><strong>Database tables:</strong></p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Table</th>
+                        <th>Purpose</th>
+                        <th>Key Fields</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><strong>users</strong></td><td>User accounts and auth</td><td>id, username, email, password_hash, display_name</td></tr>
+                    <tr><td><strong>machine_brands</strong></td><td>Laser machine manufacturers</td><td>id, name, slug</td></tr>
+                    <tr><td><strong>machine_models</strong></td><td>Specific machine models</td><td>id, brand_id (FK), name, laser_type, wattage</td></tr>
+                    <tr><td><strong>material_categories</strong></td><td>Material groupings</td><td>id, name (Wood, Acrylic, etc.)</td></tr>
+                    <tr><td><strong>materials</strong></td><td>Specific materials</td><td>id, category_id (FK), name, slug</td></tr>
+                    <tr><td><strong>material_aliases</strong></td><td>Alternative names for materials</td><td>id, material_id (FK), alias</td></tr>
+                    <tr><td><strong>operations</strong></td><td>Laser operations</td><td>id, name (Cut, Engrave, Score, etc.)</td></tr>
+                    <tr><td><strong>settings</strong></td><td>Core PowerScale data</td><td>id, user_id, machine_model_id, material_id, operation_id, power, speed, passes, dpi, notes</td></tr>
+                    <tr><td><strong>votes</strong></td><td>Community validation</td><td>id, user_id, setting_id, value (+1/-1)</td></tr>
+                </tbody>
+            </table>
+
+            <h3>Key Relationships</h3>
+            <ul>
+                <li><strong>Settings</strong> is the central junction table — it references users, machine_models, materials, and operations</li>
+                <li><strong>Votes</strong> link users to settings with a unique constraint (one vote per user per setting)</li>
+                <li><strong>Material aliases</strong> power the normalization engine — "1/8 Inch Ply" maps to "3mm Birch Plywood"</li>
+                <li><strong>Machine models</strong> cascade from brands, with laser_type (CO2/Diode/Fiber) and wattage</li>
+            </ul>
+        </section>
+
+        <section id="development">
+            <h2>Development Workflow</h2>
+
+            <h3>Local Development Setup</h3>
+            <ol>
+                <li><strong>Database setup:</strong>
+                    <pre><code>mysql -u root < backend/schema.sql
+mysql -u root < backend/sample_data.sql</code></pre>
+                </li>
+                <li><strong>Start backend:</strong>
+                    <pre><code>cd backend
+go run main.go    # Runs on localhost:8080</code></pre>
+                </li>
+                <li><strong>Start frontend:</strong>
+                    <pre><code>cd frontend
+npm install       # First time only
+npm run dev       # Runs on localhost:5173</code></pre>
+                </li>
+                <li><strong>Vite proxy:</strong> Requests to <code>/api/*</code> on port 5173 are automatically proxied to Go on port 8080</li>
+            </ol>
+
+            <h3>Making Changes</h3>
+            <ul>
+                <li><strong>React changes:</strong> Hot-reloaded automatically by Vite</li>
+                <li><strong>Go changes:</strong> Requires restart (or use <code>air</code> for auto-reload)</li>
+                <li><strong>Database schema changes:</strong> Edit <code>schema.sql</code>, re-run sqlc: <code>sqlc generate</code></li>
+                <li><strong>New queries:</strong> Add to <code>db/queries.sql</code>, run <code>sqlc generate</code>, use in <code>main.go</code></li>
+            </ul>
+
+            <h3>Production Deployment</h3>
+            <ol>
+                <li><code>npm run build</code> — Creates optimized static files in <code>dist/</code></li>
+                <li><code>go build -o server</code> — Compiles Go binary</li>
+                <li><code>git push</code> — Push to GitHub</li>
+                <li>Deploy to server, configure NGINX, restart services</li>
+            </ol>
+        </section>
+
+        <section id="troubleshooting">
+            <h2>Common Issues and Solutions</h2>
+
+            <h3>Database Connection Errors</h3>
+            <div class="warning">
+                <strong>Problem:</strong> "Failed to connect to database" or "Access denied"
+                <br><br>
+                <strong>Solution:</strong>
+                <ul>
+                    <li>Check MySQL is running: <code>systemctl status mysql</code></li>
+                    <li>Verify connection string in <code>main.go</code></li>
+                    <li>Test connection: <code>mysql -u laserscribe -p</code></li>
+                    <li>Create database if missing: run <code>schema.sql</code></li>
+                </ul>
+            </div>
+
+            <h3>CORS Errors</h3>
+            <div class="warning">
+                <strong>Problem:</strong> "Access blocked by CORS policy"
+                <br><br>
+                <strong>Why:</strong> React (port 5173) and Go (port 8080) are different origins. The Vite proxy config handles this in development. In production, NGINX proxies everything through one origin.
+            </div>
+
+            <h3>sqlc Generation Errors</h3>
+            <div class="warning">
+                <strong>Problem:</strong> <code>sqlc generate</code> fails
+                <br><br>
+                <strong>Solution:</strong>
+                <ul>
+                    <li>Test queries directly in MySQL first</li>
+                    <li>Check query annotations (<code>-- name: ...</code>) syntax</li>
+                    <li>Verify <code>schema.sql</code> matches your queries</li>
+                    <li>Review sqlc error messages — they're usually specific</li>
+                </ul>
+            </div>
+
+            <h3>Empty API Responses</h3>
+            <div class="warning">
+                <strong>Problem:</strong> API returns 200 OK but empty data
+                <br><br>
+                <strong>Solution:</strong>
+                <ul>
+                    <li>Check if seed data was loaded: <code>SELECT COUNT(*) FROM settings;</code></li>
+                    <li>Verify filter params are being parsed correctly in Go</li>
+                    <li>Check <code>sql.NullInt32</code> Valid flags — invalid means "no filter"</li>
+                </ul>
+            </div>
+        </section>
+
+        <section>
+            <h2>Key Takeaways</h2>
+            <ul>
+                <li><strong>Separation of Concerns:</strong> React handles UI, Go handles API logic, MySQL stores data, sqlc bridges Go and MySQL, NGINX routes traffic</li>
+                <li><strong>Vote-Driven Ranking:</strong> The LEFT JOIN + COALESCE pattern aggregates votes in the same query that fetches settings</li>
+                <li><strong>Optional Filtering:</strong> sqlc's <code>sqlc.narg</code> enables powerful optional WHERE clauses without multiple query variants</li>
+                <li><strong>Type Safety:</strong> sqlc ensures Go code and database schema stay in sync at compile time</li>
+                <li><strong>API-First Design:</strong> Well-defined REST endpoints enable future clients (mobile app, CLI tool, etc.)</li>
+            </ul>
+        </section>
+
+        <footer style="margin-top: 60px; padding: 20px; background: #fff7ed; text-align: center; border-top: 3px solid #f97316;">
+            <p style="margin: 0; color: #666;">Created for the Laserscribe / PowerScale Project</p>
+            <p style="margin: 5px 0 0 0; color: #999; font-size: 0.9em;">React 19 + Vite 7 + Tailwind v4 + Go + Gin + sqlc + MySQL</p>
+        </footer>
+    </div>
+</body></html>
