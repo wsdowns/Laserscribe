@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightBurnLibrary DisplayName="Gweike 20W Fiber">
+    <Material name="Stainless Steel">
+        <Entry Thickness="-1.0000" Desc="Line" NoThickTitle="Line">
+            <CutSetting type="Cut">
+                <index Value="0"/>
+                <name Value=""/>
+                <LinkPath Value="Stainless Steel/Line/Line"/>
+                <maxPower Value="70"/>
+                <maxPower2 Value="20"/>
+                <speed Value="1000"/>
+                <frequency Value="30"/>
+                <numPasses Value="1"/>
+                <scanOpt Value="mergeAll"/>
+                <interval Value="0.1"/>
+                <priority Value="0"/>
+                <tabCount Value="1"/>
+                <tabCountMax Value="1"/>
+            </CutSetting>
+        </Entry>
+        <Entry Thickness="-1.0000" Desc="Fill" NoThickTitle="Fill">
+            <CutSetting type="Scan">
+                <index Value="0"/>
+                <name Value=""/>
+                <LinkPath Value="Stainless Steel/Fill/Fill"/>
+                <maxPower Value="75"/>
+                <maxPower2 Value="20"/>
+                <speed Value="1000"/>
+                <frequency Value="30"/>
+                <numPasses Value="1"/>
+                <scanOpt Value="mergeAll"/>
+                <interval Value="0.03"/>
+                <priority Value="0"/>
+                <tabCount Value="1"/>
+                <tabCountMax Value="1"/>
+            </CutSetting>
+        </Entry>
+    </Material>
+    <Material name="Brass">
+        <Entry Thickness="-1.0000" Desc="Line" NoThickTitle="Line">
+            <CutSetting type="Cut">
+                <index Value="0"/>
+                <name Value=""/>
+                <LinkPath Value="Brass/Line/Line"/>
+                <maxPower Value="90"/>
+                <maxPower2 Value="20"/>
+                <speed Value="1000"/>
+                <frequency Value="30"/>
+                <numPasses Value="1"/>
+                <scanOpt Value="mergeAll"/>
+                <interval Value="0.1"/>
+                <priority Value="0"/>
+                <tabCount Value="1"/>
+                <tabCountMax Value="1"/>
+            </CutSetting>
+        </Entry>
+        <Entry Thickness="-1.0000" Desc="Fill" NoThickTitle="Fill">
+            <CutSetting type="Scan">
+                <index Value="0"/>
+                <name Value=""/>
+                <LinkPath Value="Brass/Fill/Fill"/>
+                <maxPower Value="90"/>
+                <maxPower2 Value="20"/>
+                <speed Value="800"/>
+                <frequency Value="30"/>
+                <numPasses Value="1"/>
+                <scanOpt Value="mergeAll"/>
+                <interval Value="0.03"/>
+                <priority Value="0"/>
+                <tabCount Value="1"/>
+                <tabCountMax Value="1"/>
+            </CutSetting>
+        </Entry>
+        <Entry Thickness="-1.0000" Desc="3D Engraving" NoThickTitle="3D Engraving">
+            <CutSetting type="Scan">
+                <index Value="0"/>
+                <name Value=""/>
+                <LinkPath Value="Brass/3D Engraving/3D Engraving"/>
+                <maxPower Value="80"/>
+                <maxPower2 Value="20"/>
+                <speed Value="1000"/>
+                <frequency Value="50"/>
+                <numPasses Value="256"/>
+                <scanOpt Value="mergeAll"/>
+                <interval Value="0.1"/>
+                <priority Value="0"/>
+                <tabCount Value="1"/>
+                <tabCountMax Value="1"/>
+            </CutSetting>
+        </Entry>
+    </Material>
+    <Material name="Aluminum Sheet">
+        <Entry Thickness="-1.0000" Desc="Line" NoThickTitle="Line">
+            <CutSetting type="Cut">
+                <index Value="0"/>
+                <name Value=""/>
+                <LinkPath Value="Aluminum Sheet/Line/Line"/>
+                <maxPower Value="90"/>
+                <maxPower2 Value="20"/>
+                <speed Value="800"/>
+                <frequency Value="40"/>
+                <numPasses Value="1"/>
+                <scanOpt Value="mergeAll"/>
+                <interval Value="0.1"/>
+                <priority Value="0"/>
+                <tabCount Value="1"/>
+                <tabCountMax Value="1"/>
+            </CutSetting>
+        </Entry>
+        <Entry Thickness="-1.0000" Desc="Fill" NoThickTitle="Fill">
+            <CutSetting type="Scan">
+                <index Value="0"/>
+                <name Value=""/>
+                <LinkPath Value="Aluminum Sheet/Fill/Fill"/>
+                <maxPower Value="75"/>
+                <maxPower2 Value="20"/>
+                <speed Value="1000"/>
+                <frequency Value="30"/>
+                <numPasses Value="1"/>
+                <scanOpt Value="mergeAll"/>
+                <interval Value="0.03"/>
+                <priority Value="0"/>
+                <tabCount Value="1"/>
+                <tabCountMax Value="1"/>
+            </CutSetting>
+        </Entry>
+    </Material>
+    <Material name="Slate Coasters">
+        <Entry Thickness="-1.0000" Desc="Line" NoThickTitle="Line">
+            <CutSetting type="Cut">
+                <index Value="0"/>
+                <name Value=""/>
+                <LinkPath Value="Slate Coasters/Line/Line"/>
+                <maxPower Value="75"/>
+                <maxPower2 Value="20"/>
+                <speed Value="1000"/>
+                <frequency Value="30"/>
+                <numPasses Value="1"/>
+                <scanOpt Value="mergeAll"/>
+                <interval Value="0.1"/>
+                <priority Value="0"/>
+                <tabCount Value="1"/>
+                <tabCountMax Value="1"/>
+            </CutSetting>
+        </Entry>
+        <Entry Thickness="-1.0000" Desc="Fill" NoThickTitle="Fill">
+            <CutSetting type="Scan">
+                <index Value="0"/>
+                <name Value=""/>
+                <LinkPath Value="Slate Coasters/Fill/Fill"/>
+                <maxPower Value="75"/>
+                <maxPower2 Value="20"/>
+                <speed Value="800"/>
+                <frequency Value="30"/>
+                <numPasses Value="1"/>
+                <scanOpt Value="mergeAll"/>
+                <interval Value="0.03"/>
+                <priority Value="0"/>
+                <tabCount Value="1"/>
+                <tabCountMax Value="1"/>
+            </CutSetting>
+        </Entry>
+    </Material>
+</LightBurnLibrary>

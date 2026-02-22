@@ -52,11 +52,17 @@ function Sidebar({ user, onLogout }) {
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center gap-2 px-6 h-20 border-b border-ls-border">
-            <div className="w-8 h-8 bg-ls-accent rounded-lg flex items-center justify-center">
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            </div>
+            <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="5" fill="#f97316" />
+              <line x1="12" y1="1" x2="12" y2="5" stroke="#f97316" strokeWidth="2" strokeLinecap="round" />
+              <line x1="12" y1="19" x2="12" y2="23" stroke="#f97316" strokeWidth="2" strokeLinecap="round" />
+              <line x1="1" y1="12" x2="5" y2="12" stroke="#f97316" strokeWidth="2" strokeLinecap="round" />
+              <line x1="19" y1="12" x2="23" y2="12" stroke="#f97316" strokeWidth="2" strokeLinecap="round" />
+              <line x1="4.2" y1="4.2" x2="7.2" y2="7.2" stroke="#f97316" strokeWidth="2" strokeLinecap="round" />
+              <line x1="16.8" y1="16.8" x2="19.8" y2="19.8" stroke="#f97316" strokeWidth="2" strokeLinecap="round" />
+              <line x1="4.2" y1="19.8" x2="7.2" y2="16.8" stroke="#f97316" strokeWidth="2" strokeLinecap="round" />
+              <line x1="16.8" y1="7.2" x2="19.8" y2="4.2" stroke="#f97316" strokeWidth="2" strokeLinecap="round" />
+            </svg>
             <div>
               <span className="text-lg font-bold text-white">Laser</span>
               <span className="text-lg font-bold text-ls-accent">scribed</span>
