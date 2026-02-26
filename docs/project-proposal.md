@@ -84,52 +84,107 @@ A split-screen interface offering two paths:
 
 ## 5. Database Schema (MySQL)
 
-The relational structure captures the specific hardware context (Laser Type) alongside the operation.
+Settings are identified by **laser type + wattage** rather than a specific machine brand/model. This matches how LightBurn .clb files work — they encode laser parameters, not machine identity. A 60W CO2 setting works on any 60W CO2 machine regardless of manufacturer.
 
-### 1. users Table
+### 1. users
 
 | Column | Type | Notes |
 |--------|------|-------|
-| id | PK, BIGINT | |
-| email | VARCHAR, Unique | |
-| password_hash | VARCHAR | bcrypt |
-| display_name | VARCHAR | |
+| id | PK, INT | |
+| username | VARCHAR(50), Unique | |
+| email | VARCHAR(255), Unique | |
+| password_hash | VARCHAR(255) | bcrypt |
+| display_name | VARCHAR(100) | |
 | created_at | TIMESTAMP | |
 
-### 2. materials Table (The Canonical List)
+### 2. material_categories
 
 | Column | Type | Notes |
 |--------|------|-------|
-| id | PK, BIGINT | |
-| name | VARCHAR | e.g., "Baltic Birch" |
-| thickness_mm | DECIMAL | |
-| category | VARCHAR | e.g., "Wood", "Acrylic", "Metal" |
+| id | PK, INT | |
+| name | VARCHAR(100), Unique | e.g., "Wood", "Acrylic", "Metal" |
 
-### 3. material_settings Table (The Core Data)
+### 3. materials
 
 | Column | Type | Notes |
 |--------|------|-------|
-| id | PK, BIGINT | |
-| user_id | FK, BIGINT | Extracted securely from JWT |
-| material_id | FK, BIGINT | |
-| laser_type | ENUM | 'Diode', 'CO2', 'Fiber', 'UV', 'Infrared' |
-| machine_wattage | INT | e.g., 20, 60 |
-| marking_type | ENUM | 'Line', 'Fill', 'Offset Fill', 'Image', '3D Engrave' |
-| speed | DECIMAL | Stored strictly as mm/sec |
-| min_power | DECIMAL | |
-| max_power | DECIMAL | |
-| passes | INT | |
-| interval_mm | DECIMAL | Used for Scan DPI calculation |
-| z_offset | DECIMAL | |
-| air_assist | BOOLEAN | |
-| votes_score | INT | Cached aggregate of upvotes/downvotes |
+| id | PK, INT | |
+| category_id | FK → material_categories | |
+| name | VARCHAR(200) | e.g., "3mm Birch Plywood" |
+| slug | VARCHAR(200), Unique | URL-safe identifier |
+
+### 4. material_aliases
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | PK, INT | |
+| material_id | FK → materials | |
+| alias | VARCHAR(200) | e.g., "1/8 Inch Birch Plywood", "Baltic Birch 3mm" |
+
+### 5. settings (The Core Data)
+
+Maps 1:1 to LightBurn `.clb` CutSetting fields. See `docs/lightburn-clb-format.md` for field details.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | PK, INT | |
+| user_id | FK → users | Extracted securely from JWT |
+| material_id | FK → materials | |
+| laser_type | ENUM | 'CO2', 'Fiber', 'Diode', 'UV', 'Infrared' |
+| wattage | INT | e.g., 20, 60 |
+| operation_type | ENUM | 'Cut' (Line), 'Scan' (Fill), 'ScanCut' (Fill+Line) |
+| max_power | DECIMAL(7,3) | 0-100% |
+| min_power | DECIMAL(7,3) | Default 0 |
+| max_power2 | DECIMAL(7,3) | Nullable. Second laser max power |
+| min_power2 | DECIMAL(7,3) | Nullable. Second laser min power |
+| speed | DECIMAL(10,3) | mm/s |
+| num_passes | INT | Default 1 |
+| z_offset | DECIMAL(8,3) | Nullable |
+| z_per_pass | DECIMAL(8,3) | Nullable |
+| scan_interval | DECIMAL(8,4) | Nullable. Scan line spacing in mm |
+| angle | DECIMAL(7,3) | Nullable. Scan angle in degrees |
+| angle_per_pass | DECIMAL(7,3) | Nullable. Angle increment per pass |
+| cross_hatch | BOOLEAN | Default FALSE |
+| bidir | BOOLEAN | Default TRUE. Bidirectional scanning |
+| scan_opt | VARCHAR(50) | Nullable. "mergeAll", "byGroup", "individual" |
+| flood_fill | BOOLEAN | Default FALSE |
+| auto_rotate | BOOLEAN | Default FALSE |
+| overscan | DECIMAL(8,3) | Nullable |
+| overscan_percent | DECIMAL(7,3) | Nullable |
+| frequency | DECIMAL(12,3) | Nullable. Pulse frequency in Hz (fiber/galvo) |
+| wobble_enable | BOOLEAN | Nullable. Fiber laser wobble mode |
+| use_dot_correction | BOOLEAN | Nullable. Galvo dot correction |
+| kerf | DECIMAL(8,4) | Nullable. Kerf offset in mm |
+| run_blower | BOOLEAN | Nullable. Air assist |
+| layer_name | VARCHAR(200) | Nullable |
+| layer_subname | VARCHAR(200) | Nullable |
+| priority | INT | Nullable |
+| tab_count | INT | Nullable |
+| tab_count_max | INT | Nullable |
+| notes | TEXT | Nullable. User notes (not from CLB) |
+| created_at | TIMESTAMP | |
+| updated_at | TIMESTAMP | Auto-updated |
+
+**Unique constraint:** `(user_id, material_id, operation_type, laser_type, wattage)`
+
+### 6. votes
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | PK, INT | |
+| user_id | FK → users | |
+| setting_id | FK → settings | |
+| value | TINYINT | +1 or -1 |
 | created_at | TIMESTAMP | |
 
-### 4. votes Table (To prevent duplicate voting)
+**Unique constraint:** `(user_id, setting_id)`
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | PK, BIGINT | |
-| user_id | FK, BIGINT | |
-| setting_id | FK, BIGINT | |
-| vote_value | INT | +1 or -1 |
+---
+
+## 6. Future Considerations
+
+### Machine Brands & Models
+
+The initial build intentionally omits machine brand and model tables. Settings are discoverable by laser type and wattage alone, which is sufficient for cross-machine compatibility.
+
+When the community grows, we may add brand/model tables with an **alias system** (similar to material aliases) to normalize inconsistent naming conventions (e.g., "OMTech" vs "omtech" vs "Om Tech", "Gweike G2 50" vs "G2 50 Max"). This would enable browsing by machine ("show me all settings for my Gweike G2") without blocking uploads or requiring exact name matches. Brand/model would remain optional metadata on settings — never a required foreign key.

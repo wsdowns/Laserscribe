@@ -41,19 +41,12 @@ func main() {
 	r.POST("/api/register", registerHandler)
 	r.POST("/api/login", loginHandler)
 
-	// Brands & Models
-	r.GET("/api/brands", getBrandsHandler)
-	r.GET("/api/brands/:id/models", getModelsByBrandHandler)
-
 	// Materials
 	r.GET("/api/materials", getMaterialsHandler)
 	r.GET("/api/materials/:id/aliases", getAliasesHandler)
 	r.GET("/api/categories", getCategoriesHandler)
 
-	// Operations
-	r.GET("/api/operations", getOperationsHandler)
-
-	// Settings (PowerScale)
+	// Settings
 	r.GET("/api/settings", searchSettingsHandler)
 	r.GET("/api/settings/top", getTopSettingsHandler)
 	r.GET("/api/settings/:id", getSettingHandler)
@@ -185,33 +178,6 @@ func loginHandler(c *gin.Context) {
 }
 
 // =====================
-// BRAND & MODEL HANDLERS
-// =====================
-
-func getBrandsHandler(c *gin.Context) {
-	brands, err := queries.GetAllBrands(c.Request.Context())
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, brands)
-}
-
-func getModelsByBrandHandler(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid brand id"})
-		return
-	}
-	models, err := queries.GetModelsByBrand(c.Request.Context(), int32(id))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, models)
-}
-
-// =====================
 // MATERIAL HANDLERS
 // =====================
 
@@ -279,36 +245,35 @@ func getAliasesHandler(c *gin.Context) {
 }
 
 // =====================
-// OPERATION HANDLERS
-// =====================
-
-func getOperationsHandler(c *gin.Context) {
-	operations, err := queries.GetAllOperations(c.Request.Context())
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, operations)
-}
-
-// =====================
 // SETTINGS HANDLERS
 // =====================
 
 func searchSettingsHandler(c *gin.Context) {
 	params := db.SearchSettingsParams{}
 
-	if v := c.Query("machine_model_id"); v != "" {
-		id, _ := strconv.Atoi(v)
-		params.MachineModelID = sql.NullInt32{Int32: int32(id), Valid: true}
-	}
 	if v := c.Query("material_id"); v != "" {
 		id, _ := strconv.Atoi(v)
 		params.MaterialID = sql.NullInt32{Int32: int32(id), Valid: true}
 	}
-	if v := c.Query("operation_id"); v != "" {
+	if v := c.Query("laser_type"); v != "" {
+		params.LaserType = db.NullSettingsLaserType{
+			SettingsLaserType: db.SettingsLaserType(v),
+			Valid:             true,
+		}
+	}
+	if v := c.Query("wattage"); v != "" {
+		w, _ := strconv.Atoi(v)
+		params.Wattage = sql.NullInt32{Int32: int32(w), Valid: true}
+	}
+	if v := c.Query("operation_type"); v != "" {
+		params.OperationType = db.NullSettingsOperationType{
+			SettingsOperationType: db.SettingsOperationType(v),
+			Valid:                 true,
+		}
+	}
+	if v := c.Query("user_id"); v != "" {
 		id, _ := strconv.Atoi(v)
-		params.OperationID = sql.NullInt32{Int32: int32(id), Valid: true}
+		params.UserID = sql.NullInt32{Int32: int32(id), Valid: true}
 	}
 
 	settings, err := queries.SearchSettings(c.Request.Context(), params)
@@ -343,15 +308,39 @@ func getSettingHandler(c *gin.Context) {
 }
 
 type CreateSettingRequest struct {
-	MachineModelID int32  `json:"machineModelId" binding:"required"`
-	MaterialID     int32  `json:"materialId" binding:"required"`
-	OperationID    int32  `json:"operationId" binding:"required"`
-	Power          int32  `json:"power" binding:"required"`
-	Speed          int32  `json:"speed" binding:"required"`
-	Passes         int32  `json:"passes"`
-	Frequency      *int32 `json:"frequency"`
-	DPI            *int32 `json:"dpi"`
-	Notes          string `json:"notes"`
+	MaterialID     int32   `json:"materialId" binding:"required"`
+	LaserType      string  `json:"laserType" binding:"required"`
+	Wattage        int32   `json:"wattage" binding:"required"`
+	OperationType  string  `json:"operationType" binding:"required"`
+	MaxPower       string  `json:"maxPower" binding:"required"`
+	MinPower       string  `json:"minPower"`
+	MaxPower2      *string `json:"maxPower2"`
+	MinPower2      *string `json:"minPower2"`
+	Speed          string  `json:"speed" binding:"required"`
+	NumPasses      int32   `json:"numPasses"`
+	ZOffset        *string `json:"zOffset"`
+	ZPerPass       *string `json:"zPerPass"`
+	ScanInterval   *string `json:"scanInterval"`
+	Angle          *string `json:"angle"`
+	AnglePerPass   *string `json:"anglePerPass"`
+	CrossHatch     bool    `json:"crossHatch"`
+	Bidir          *bool   `json:"bidir"`
+	ScanOpt        *string `json:"scanOpt"`
+	FloodFill      bool    `json:"floodFill"`
+	AutoRotate     bool    `json:"autoRotate"`
+	Overscan       *string `json:"overscan"`
+	OverscanPercent *string `json:"overscanPercent"`
+	Frequency      *string `json:"frequency"`
+	WobbleEnable   *bool   `json:"wobbleEnable"`
+	UseDotCorrection *bool `json:"useDotCorrection"`
+	Kerf           *string `json:"kerf"`
+	RunBlower      *bool   `json:"runBlower"`
+	LayerName      *string `json:"layerName"`
+	LayerSubname   *string `json:"layerSubname"`
+	Priority       *int32  `json:"priority"`
+	TabCount       *int32  `json:"tabCount"`
+	TabCountMax    *int32  `json:"tabCountMax"`
+	Notes          string  `json:"notes"`
 }
 
 func createSettingHandler(c *gin.Context) {
@@ -362,35 +351,60 @@ func createSettingHandler(c *gin.Context) {
 		return
 	}
 
-	passes := req.Passes
-	if passes == 0 {
-		passes = 1
+	numPasses := req.NumPasses
+	if numPasses == 0 {
+		numPasses = 1
 	}
 
-	freq := sql.NullInt32{}
-	if req.Frequency != nil {
-		freq = sql.NullInt32{Int32: *req.Frequency, Valid: true}
+	bidir := true
+	if req.Bidir != nil {
+		bidir = *req.Bidir
 	}
-	dpi := sql.NullInt32{}
-	if req.DPI != nil {
-		dpi = sql.NullInt32{Int32: *req.DPI, Valid: true}
+
+	minPower := req.MinPower
+	if minPower == "" {
+		minPower = "0"
 	}
 
 	result, err := queries.CreateSetting(c.Request.Context(), db.CreateSettingParams{
-		UserID:         int32(userID),
-		MachineModelID: req.MachineModelID,
-		MaterialID:     req.MaterialID,
-		OperationID:    req.OperationID,
-		Power:          req.Power,
-		Speed:          req.Speed,
-		Passes:         passes,
-		Frequency:      freq,
-		Dpi:            dpi,
-		Notes:          sql.NullString{String: req.Notes, Valid: req.Notes != ""},
+		UserID:           int32(userID),
+		MaterialID:       req.MaterialID,
+		LaserType:        db.SettingsLaserType(req.LaserType),
+		Wattage:          req.Wattage,
+		OperationType:    db.SettingsOperationType(req.OperationType),
+		MaxPower:         req.MaxPower,
+		MinPower:         minPower,
+		MaxPower2:        nullString(req.MaxPower2),
+		MinPower2:        nullString(req.MinPower2),
+		Speed:            req.Speed,
+		NumPasses:        numPasses,
+		ZOffset:          nullString(req.ZOffset),
+		ZPerPass:         nullString(req.ZPerPass),
+		ScanInterval:     nullString(req.ScanInterval),
+		Angle:            nullString(req.Angle),
+		AnglePerPass:     nullString(req.AnglePerPass),
+		CrossHatch:       req.CrossHatch,
+		Bidir:            bidir,
+		ScanOpt:          nullString(req.ScanOpt),
+		FloodFill:        req.FloodFill,
+		AutoRotate:       req.AutoRotate,
+		Overscan:         nullString(req.Overscan),
+		OverscanPercent:  nullString(req.OverscanPercent),
+		Frequency:        nullString(req.Frequency),
+		WobbleEnable:     nullBool(req.WobbleEnable),
+		UseDotCorrection: nullBool(req.UseDotCorrection),
+		Kerf:             nullString(req.Kerf),
+		RunBlower:        nullBool(req.RunBlower),
+		LayerName:        nullString(req.LayerName),
+		LayerSubname:     nullString(req.LayerSubname),
+		Priority:         nullInt32(req.Priority),
+		TabCount:         nullInt32(req.TabCount),
+		TabCountMax:      nullInt32(req.TabCountMax),
+		Notes:            sql.NullString{String: req.Notes, Valid: req.Notes != ""},
 	})
 	if err != nil {
 		if strings.Contains(err.Error(), "Duplicate") {
-			c.JSON(http.StatusConflict, gin.H{"error": "you already have a setting for this machine/material/operation combination"})
+			c.JSON(http.StatusConflict, gin.H{"error": "you already have a setting for this material/operation/laser combination"})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -402,12 +416,35 @@ func createSettingHandler(c *gin.Context) {
 }
 
 type UpdateSettingRequest struct {
-	Power     int32  `json:"power" binding:"required"`
-	Speed     int32  `json:"speed" binding:"required"`
-	Passes    int32  `json:"passes"`
-	Frequency *int32 `json:"frequency"`
-	DPI       *int32 `json:"dpi"`
-	Notes     string `json:"notes"`
+	MaxPower       string  `json:"maxPower" binding:"required"`
+	MinPower       string  `json:"minPower"`
+	MaxPower2      *string `json:"maxPower2"`
+	MinPower2      *string `json:"minPower2"`
+	Speed          string  `json:"speed" binding:"required"`
+	NumPasses      int32   `json:"numPasses"`
+	ZOffset        *string `json:"zOffset"`
+	ZPerPass       *string `json:"zPerPass"`
+	ScanInterval   *string `json:"scanInterval"`
+	Angle          *string `json:"angle"`
+	AnglePerPass   *string `json:"anglePerPass"`
+	CrossHatch     bool    `json:"crossHatch"`
+	Bidir          *bool   `json:"bidir"`
+	ScanOpt        *string `json:"scanOpt"`
+	FloodFill      bool    `json:"floodFill"`
+	AutoRotate     bool    `json:"autoRotate"`
+	Overscan       *string `json:"overscan"`
+	OverscanPercent *string `json:"overscanPercent"`
+	Frequency      *string `json:"frequency"`
+	WobbleEnable   *bool   `json:"wobbleEnable"`
+	UseDotCorrection *bool `json:"useDotCorrection"`
+	Kerf           *string `json:"kerf"`
+	RunBlower      *bool   `json:"runBlower"`
+	LayerName      *string `json:"layerName"`
+	LayerSubname   *string `json:"layerSubname"`
+	Priority       *int32  `json:"priority"`
+	TabCount       *int32  `json:"tabCount"`
+	TabCountMax    *int32  `json:"tabCountMax"`
+	Notes          string  `json:"notes"`
 }
 
 func updateSettingHandler(c *gin.Context) {
@@ -424,29 +461,53 @@ func updateSettingHandler(c *gin.Context) {
 		return
 	}
 
-	passes := req.Passes
-	if passes == 0 {
-		passes = 1
+	numPasses := req.NumPasses
+	if numPasses == 0 {
+		numPasses = 1
 	}
 
-	freq := sql.NullInt32{}
-	if req.Frequency != nil {
-		freq = sql.NullInt32{Int32: *req.Frequency, Valid: true}
+	bidir := true
+	if req.Bidir != nil {
+		bidir = *req.Bidir
 	}
-	dpi := sql.NullInt32{}
-	if req.DPI != nil {
-		dpi = sql.NullInt32{Int32: *req.DPI, Valid: true}
+
+	minPower := req.MinPower
+	if minPower == "" {
+		minPower = "0"
 	}
 
 	err = queries.UpdateSetting(c.Request.Context(), db.UpdateSettingParams{
-		Power:     req.Power,
-		Speed:     req.Speed,
-		Passes:    passes,
-		Frequency: freq,
-		Dpi:       dpi,
-		Notes:     sql.NullString{String: req.Notes, Valid: req.Notes != ""},
-		ID:        int32(settingID),
-		UserID:    int32(userID),
+		MaxPower:         req.MaxPower,
+		MinPower:         minPower,
+		MaxPower2:        nullString(req.MaxPower2),
+		MinPower2:        nullString(req.MinPower2),
+		Speed:            req.Speed,
+		NumPasses:        numPasses,
+		ZOffset:          nullString(req.ZOffset),
+		ZPerPass:         nullString(req.ZPerPass),
+		ScanInterval:     nullString(req.ScanInterval),
+		Angle:            nullString(req.Angle),
+		AnglePerPass:     nullString(req.AnglePerPass),
+		CrossHatch:       req.CrossHatch,
+		Bidir:            bidir,
+		ScanOpt:          nullString(req.ScanOpt),
+		FloodFill:        req.FloodFill,
+		AutoRotate:       req.AutoRotate,
+		Overscan:         nullString(req.Overscan),
+		OverscanPercent:  nullString(req.OverscanPercent),
+		Frequency:        nullString(req.Frequency),
+		WobbleEnable:     nullBool(req.WobbleEnable),
+		UseDotCorrection: nullBool(req.UseDotCorrection),
+		Kerf:             nullString(req.Kerf),
+		RunBlower:        nullBool(req.RunBlower),
+		LayerName:        nullString(req.LayerName),
+		LayerSubname:     nullString(req.LayerSubname),
+		Priority:         nullInt32(req.Priority),
+		TabCount:         nullInt32(req.TabCount),
+		TabCountMax:      nullInt32(req.TabCountMax),
+		Notes:            sql.NullString{String: req.Notes, Valid: req.Notes != ""},
+		ID:               int32(settingID),
+		UserID:           int32(userID),
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -534,4 +595,29 @@ func getUserSettingsHandler(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, settings)
+}
+
+// =====================
+// HELPERS
+// =====================
+
+func nullString(v *string) sql.NullString {
+	if v == nil {
+		return sql.NullString{}
+	}
+	return sql.NullString{String: *v, Valid: true}
+}
+
+func nullBool(v *bool) sql.NullBool {
+	if v == nil {
+		return sql.NullBool{}
+	}
+	return sql.NullBool{Bool: *v, Valid: true}
+}
+
+func nullInt32(v *int32) sql.NullInt32 {
+	if v == nil {
+		return sql.NullInt32{}
+	}
+	return sql.NullInt32{Int32: *v, Valid: true}
 }

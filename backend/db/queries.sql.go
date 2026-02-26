@@ -11,34 +11,105 @@ import (
 )
 
 const createSetting = `-- name: CreateSetting :execresult
-INSERT INTO settings (user_id, machine_model_id, material_id, operation_id, power, speed, passes, frequency, dpi, notes)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO settings (
+    user_id, material_id, laser_type, wattage, operation_type,
+    max_power, min_power, max_power2, min_power2, speed,
+    num_passes, z_offset, z_per_pass,
+    scan_interval, angle, angle_per_pass,
+    cross_hatch, bidir, scan_opt,
+    flood_fill, auto_rotate, overscan, overscan_percent,
+    frequency, wobble_enable, use_dot_correction,
+    kerf, run_blower,
+    layer_name, layer_subname,
+    priority, tab_count, tab_count_max,
+    notes
+) VALUES (
+    ?, ?, ?, ?, ?,
+    ?, ?, ?, ?, ?,
+    ?, ?, ?,
+    ?, ?, ?,
+    ?, ?, ?,
+    ?, ?, ?, ?,
+    ?, ?, ?,
+    ?, ?,
+    ?, ?,
+    ?, ?, ?,
+    ?
+)
 `
 
 type CreateSettingParams struct {
-	UserID         int32
-	MachineModelID int32
-	MaterialID     int32
-	OperationID    int32
-	Power          int32
-	Speed          int32
-	Passes         int32
-	Frequency      sql.NullInt32
-	Dpi            sql.NullInt32
-	Notes          sql.NullString
+	UserID           int32
+	MaterialID       int32
+	LaserType        SettingsLaserType
+	Wattage          int32
+	OperationType    SettingsOperationType
+	MaxPower         string
+	MinPower         string
+	MaxPower2        sql.NullString
+	MinPower2        sql.NullString
+	Speed            string
+	NumPasses        int32
+	ZOffset          sql.NullString
+	ZPerPass         sql.NullString
+	ScanInterval     sql.NullString
+	Angle            sql.NullString
+	AnglePerPass     sql.NullString
+	CrossHatch       bool
+	Bidir            bool
+	ScanOpt          sql.NullString
+	FloodFill        bool
+	AutoRotate       bool
+	Overscan         sql.NullString
+	OverscanPercent  sql.NullString
+	Frequency        sql.NullString
+	WobbleEnable     sql.NullBool
+	UseDotCorrection sql.NullBool
+	Kerf             sql.NullString
+	RunBlower        sql.NullBool
+	LayerName        sql.NullString
+	LayerSubname     sql.NullString
+	Priority         sql.NullInt32
+	TabCount         sql.NullInt32
+	TabCountMax      sql.NullInt32
+	Notes            sql.NullString
 }
 
 func (q *Queries) CreateSetting(ctx context.Context, arg CreateSettingParams) (sql.Result, error) {
 	return q.db.ExecContext(ctx, createSetting,
 		arg.UserID,
-		arg.MachineModelID,
 		arg.MaterialID,
-		arg.OperationID,
-		arg.Power,
+		arg.LaserType,
+		arg.Wattage,
+		arg.OperationType,
+		arg.MaxPower,
+		arg.MinPower,
+		arg.MaxPower2,
+		arg.MinPower2,
 		arg.Speed,
-		arg.Passes,
+		arg.NumPasses,
+		arg.ZOffset,
+		arg.ZPerPass,
+		arg.ScanInterval,
+		arg.Angle,
+		arg.AnglePerPass,
+		arg.CrossHatch,
+		arg.Bidir,
+		arg.ScanOpt,
+		arg.FloodFill,
+		arg.AutoRotate,
+		arg.Overscan,
+		arg.OverscanPercent,
 		arg.Frequency,
-		arg.Dpi,
+		arg.WobbleEnable,
+		arg.UseDotCorrection,
+		arg.Kerf,
+		arg.RunBlower,
+		arg.LayerName,
+		arg.LayerSubname,
+		arg.Priority,
+		arg.TabCount,
+		arg.TabCountMax,
 		arg.Notes,
 	)
 }
@@ -111,39 +182,6 @@ func (q *Queries) GetAliasesByMaterial(ctx context.Context, materialID int32) ([
 	for rows.Next() {
 		var i MaterialAlias
 		if err := rows.Scan(&i.ID, &i.MaterialID, &i.Alias); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getAllBrands = `-- name: GetAllBrands :many
-
-SELECT id, name, slug
-FROM machine_brands
-ORDER BY name
-`
-
-// =====================
-// MACHINE BRANDS
-// =====================
-func (q *Queries) GetAllBrands(ctx context.Context) ([]MachineBrand, error) {
-	rows, err := q.db.QueryContext(ctx, getAllBrands)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []MachineBrand
-	for rows.Next() {
-		var i MachineBrand
-		if err := rows.Scan(&i.ID, &i.Name, &i.Slug); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -239,101 +277,6 @@ func (q *Queries) GetAllMaterials(ctx context.Context) ([]GetAllMaterialsRow, er
 	return items, nil
 }
 
-const getAllModels = `-- name: GetAllModels :many
-SELECT m.id, m.brand_id, m.name, m.laser_type, m.wattage, m.slug,
-       b.name as brand_name
-FROM machine_models m
-JOIN machine_brands b ON m.brand_id = b.id
-ORDER BY b.name, m.name
-`
-
-type GetAllModelsRow struct {
-	ID        int32
-	BrandID   int32
-	Name      string
-	LaserType MachineModelsLaserType
-	Wattage   int32
-	Slug      string
-	BrandName string
-}
-
-func (q *Queries) GetAllModels(ctx context.Context) ([]GetAllModelsRow, error) {
-	rows, err := q.db.QueryContext(ctx, getAllModels)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetAllModelsRow
-	for rows.Next() {
-		var i GetAllModelsRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.BrandID,
-			&i.Name,
-			&i.LaserType,
-			&i.Wattage,
-			&i.Slug,
-			&i.BrandName,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getAllOperations = `-- name: GetAllOperations :many
-
-SELECT id, name
-FROM operations
-ORDER BY name
-`
-
-// =====================
-// OPERATIONS
-// =====================
-func (q *Queries) GetAllOperations(ctx context.Context) ([]Operation, error) {
-	rows, err := q.db.QueryContext(ctx, getAllOperations)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Operation
-	for rows.Next() {
-		var i Operation
-		if err := rows.Scan(&i.ID, &i.Name); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getBrandByID = `-- name: GetBrandByID :one
-SELECT id, name, slug
-FROM machine_brands
-WHERE id = ?
-`
-
-func (q *Queries) GetBrandByID(ctx context.Context, id int32) (MachineBrand, error) {
-	row := q.db.QueryRowContext(ctx, getBrandByID, id)
-	var i MachineBrand
-	err := row.Scan(&i.ID, &i.Name, &i.Slug)
-	return i, err
-}
-
 const getMaterialByID = `-- name: GetMaterialByID :one
 SELECT m.id, m.category_id, m.name, m.slug,
        c.name as category_name
@@ -398,117 +341,77 @@ func (q *Queries) GetMaterialsByCategory(ctx context.Context, categoryID int32) 
 	return items, nil
 }
 
-const getModelByID = `-- name: GetModelByID :one
-SELECT id, brand_id, name, laser_type, wattage, slug
-FROM machine_models
-WHERE id = ?
-`
-
-func (q *Queries) GetModelByID(ctx context.Context, id int32) (MachineModel, error) {
-	row := q.db.QueryRowContext(ctx, getModelByID, id)
-	var i MachineModel
-	err := row.Scan(
-		&i.ID,
-		&i.BrandID,
-		&i.Name,
-		&i.LaserType,
-		&i.Wattage,
-		&i.Slug,
-	)
-	return i, err
-}
-
-const getModelsByBrand = `-- name: GetModelsByBrand :many
-
-SELECT id, brand_id, name, laser_type, wattage, slug
-FROM machine_models
-WHERE brand_id = ?
-ORDER BY name
-`
-
-// =====================
-// MACHINE MODELS
-// =====================
-func (q *Queries) GetModelsByBrand(ctx context.Context, brandID int32) ([]MachineModel, error) {
-	rows, err := q.db.QueryContext(ctx, getModelsByBrand, brandID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []MachineModel
-	for rows.Next() {
-		var i MachineModel
-		if err := rows.Scan(
-			&i.ID,
-			&i.BrandID,
-			&i.Name,
-			&i.LaserType,
-			&i.Wattage,
-			&i.Slug,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getSettingByID = `-- name: GetSettingByID :one
 
-SELECT s.id, s.user_id, s.machine_model_id, s.material_id, s.operation_id,
-       s.power, s.speed, s.passes, s.frequency, s.dpi, s.notes,
-       s.created_at, s.updated_at,
+SELECT s.id, s.user_id, s.material_id,
+       s.laser_type, s.wattage, s.operation_type,
+       s.max_power, s.min_power, s.max_power2, s.min_power2, s.speed,
+       s.num_passes, s.z_offset, s.z_per_pass,
+       s.scan_interval, s.angle, s.angle_per_pass,
+       s.cross_hatch, s.bidir, s.scan_opt,
+       s.flood_fill, s.auto_rotate, s.overscan, s.overscan_percent,
+       s.frequency, s.wobble_enable, s.use_dot_correction,
+       s.kerf, s.run_blower,
+       s.layer_name, s.layer_subname,
+       s.priority, s.tab_count, s.tab_count_max,
+       s.notes, s.created_at, s.updated_at,
        u.username, u.display_name,
-       mm.name as model_name, mb.name as brand_name,
        mat.name as material_name, mc.name as category_name,
-       op.name as operation_name,
        COALESCE(SUM(v.value), 0) as vote_score,
        COUNT(v.id) as vote_count
 FROM settings s
 JOIN users u ON s.user_id = u.id
-JOIN machine_models mm ON s.machine_model_id = mm.id
-JOIN machine_brands mb ON mm.brand_id = mb.id
 JOIN materials mat ON s.material_id = mat.id
 JOIN material_categories mc ON mat.category_id = mc.id
-JOIN operations op ON s.operation_id = op.id
 LEFT JOIN votes v ON v.setting_id = s.id
 WHERE s.id = ?
-GROUP BY s.id, s.user_id, s.machine_model_id, s.material_id, s.operation_id,
-         s.power, s.speed, s.passes, s.frequency, s.dpi, s.notes,
-         s.created_at, s.updated_at,
-         u.username, u.display_name,
-         mm.name, mb.name, mat.name, mc.name, op.name
+GROUP BY s.id
 `
 
 type GetSettingByIDRow struct {
-	ID             int32
-	UserID         int32
-	MachineModelID int32
-	MaterialID     int32
-	OperationID    int32
-	Power          int32
-	Speed          int32
-	Passes         int32
-	Frequency      sql.NullInt32
-	Dpi            sql.NullInt32
-	Notes          sql.NullString
-	CreatedAt      sql.NullTime
-	UpdatedAt      sql.NullTime
-	Username       string
-	DisplayName    sql.NullString
-	ModelName      string
-	BrandName      string
-	MaterialName   string
-	CategoryName   string
-	OperationName  string
-	VoteScore      interface{}
-	VoteCount      int64
+	ID               int32
+	UserID           int32
+	MaterialID       int32
+	LaserType        SettingsLaserType
+	Wattage          int32
+	OperationType    SettingsOperationType
+	MaxPower         string
+	MinPower         string
+	MaxPower2        sql.NullString
+	MinPower2        sql.NullString
+	Speed            string
+	NumPasses        int32
+	ZOffset          sql.NullString
+	ZPerPass         sql.NullString
+	ScanInterval     sql.NullString
+	Angle            sql.NullString
+	AnglePerPass     sql.NullString
+	CrossHatch       bool
+	Bidir            bool
+	ScanOpt          sql.NullString
+	FloodFill        bool
+	AutoRotate       bool
+	Overscan         sql.NullString
+	OverscanPercent  sql.NullString
+	Frequency        sql.NullString
+	WobbleEnable     sql.NullBool
+	UseDotCorrection sql.NullBool
+	Kerf             sql.NullString
+	RunBlower        sql.NullBool
+	LayerName        sql.NullString
+	LayerSubname     sql.NullString
+	Priority         sql.NullInt32
+	TabCount         sql.NullInt32
+	TabCountMax      sql.NullInt32
+	Notes            sql.NullString
+	CreatedAt        sql.NullTime
+	UpdatedAt        sql.NullTime
+	Username         string
+	DisplayName      sql.NullString
+	MaterialName     string
+	CategoryName     string
+	VoteScore        interface{}
+	VoteCount        int64
 }
 
 // =====================
@@ -520,24 +423,45 @@ func (q *Queries) GetSettingByID(ctx context.Context, id int32) (GetSettingByIDR
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
-		&i.MachineModelID,
 		&i.MaterialID,
-		&i.OperationID,
-		&i.Power,
+		&i.LaserType,
+		&i.Wattage,
+		&i.OperationType,
+		&i.MaxPower,
+		&i.MinPower,
+		&i.MaxPower2,
+		&i.MinPower2,
 		&i.Speed,
-		&i.Passes,
+		&i.NumPasses,
+		&i.ZOffset,
+		&i.ZPerPass,
+		&i.ScanInterval,
+		&i.Angle,
+		&i.AnglePerPass,
+		&i.CrossHatch,
+		&i.Bidir,
+		&i.ScanOpt,
+		&i.FloodFill,
+		&i.AutoRotate,
+		&i.Overscan,
+		&i.OverscanPercent,
 		&i.Frequency,
-		&i.Dpi,
+		&i.WobbleEnable,
+		&i.UseDotCorrection,
+		&i.Kerf,
+		&i.RunBlower,
+		&i.LayerName,
+		&i.LayerSubname,
+		&i.Priority,
+		&i.TabCount,
+		&i.TabCountMax,
 		&i.Notes,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Username,
 		&i.DisplayName,
-		&i.ModelName,
-		&i.BrandName,
 		&i.MaterialName,
 		&i.CategoryName,
-		&i.OperationName,
 		&i.VoteScore,
 		&i.VoteCount,
 	)
@@ -545,55 +469,50 @@ func (q *Queries) GetSettingByID(ctx context.Context, id int32) (GetSettingByIDR
 }
 
 const getTopSettings = `-- name: GetTopSettings :many
-SELECT s.id, s.user_id, s.machine_model_id, s.material_id, s.operation_id,
-       s.power, s.speed, s.passes, s.frequency, s.dpi, s.notes,
-       s.created_at, s.updated_at,
+SELECT s.id, s.user_id, s.material_id,
+       s.laser_type, s.wattage, s.operation_type,
+       s.max_power, s.min_power, s.speed,
+       s.num_passes, s.scan_interval, s.frequency,
+       s.cross_hatch, s.angle, s.angle_per_pass,
+       s.notes, s.created_at,
        u.username, u.display_name,
-       mm.name as model_name, mb.name as brand_name,
        mat.name as material_name, mc.name as category_name,
-       op.name as operation_name,
        COALESCE(SUM(v.value), 0) as vote_score,
        COUNT(v.id) as vote_count
 FROM settings s
 JOIN users u ON s.user_id = u.id
-JOIN machine_models mm ON s.machine_model_id = mm.id
-JOIN machine_brands mb ON mm.brand_id = mb.id
 JOIN materials mat ON s.material_id = mat.id
 JOIN material_categories mc ON mat.category_id = mc.id
-JOIN operations op ON s.operation_id = op.id
 LEFT JOIN votes v ON v.setting_id = s.id
-GROUP BY s.id, s.user_id, s.machine_model_id, s.material_id, s.operation_id,
-         s.power, s.speed, s.passes, s.frequency, s.dpi, s.notes,
-         s.created_at, s.updated_at,
-         u.username, u.display_name,
-         mm.name, mb.name, mat.name, mc.name, op.name
+GROUP BY s.id
 ORDER BY vote_score DESC
 LIMIT 20
 `
 
 type GetTopSettingsRow struct {
-	ID             int32
-	UserID         int32
-	MachineModelID int32
-	MaterialID     int32
-	OperationID    int32
-	Power          int32
-	Speed          int32
-	Passes         int32
-	Frequency      sql.NullInt32
-	Dpi            sql.NullInt32
-	Notes          sql.NullString
-	CreatedAt      sql.NullTime
-	UpdatedAt      sql.NullTime
-	Username       string
-	DisplayName    sql.NullString
-	ModelName      string
-	BrandName      string
-	MaterialName   string
-	CategoryName   string
-	OperationName  string
-	VoteScore      interface{}
-	VoteCount      int64
+	ID            int32
+	UserID        int32
+	MaterialID    int32
+	LaserType     SettingsLaserType
+	Wattage       int32
+	OperationType SettingsOperationType
+	MaxPower      string
+	MinPower      string
+	Speed         string
+	NumPasses     int32
+	ScanInterval  sql.NullString
+	Frequency     sql.NullString
+	CrossHatch    bool
+	Angle         sql.NullString
+	AnglePerPass  sql.NullString
+	Notes         sql.NullString
+	CreatedAt     sql.NullTime
+	Username      string
+	DisplayName   sql.NullString
+	MaterialName  string
+	CategoryName  string
+	VoteScore     interface{}
+	VoteCount     int64
 }
 
 func (q *Queries) GetTopSettings(ctx context.Context) ([]GetTopSettingsRow, error) {
@@ -608,24 +527,25 @@ func (q *Queries) GetTopSettings(ctx context.Context) ([]GetTopSettingsRow, erro
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
-			&i.MachineModelID,
 			&i.MaterialID,
-			&i.OperationID,
-			&i.Power,
+			&i.LaserType,
+			&i.Wattage,
+			&i.OperationType,
+			&i.MaxPower,
+			&i.MinPower,
 			&i.Speed,
-			&i.Passes,
+			&i.NumPasses,
+			&i.ScanInterval,
 			&i.Frequency,
-			&i.Dpi,
+			&i.CrossHatch,
+			&i.Angle,
+			&i.AnglePerPass,
 			&i.Notes,
 			&i.CreatedAt,
-			&i.UpdatedAt,
 			&i.Username,
 			&i.DisplayName,
-			&i.ModelName,
-			&i.BrandName,
 			&i.MaterialName,
 			&i.CategoryName,
-			&i.OperationName,
 			&i.VoteScore,
 			&i.VoteCount,
 		); err != nil {
@@ -707,50 +627,47 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 }
 
 const getUserSettings = `-- name: GetUserSettings :many
-SELECT s.id, s.user_id, s.machine_model_id, s.material_id, s.operation_id,
-       s.power, s.speed, s.passes, s.frequency, s.dpi, s.notes,
-       s.created_at, s.updated_at,
-       mm.name as model_name, mb.name as brand_name,
+SELECT s.id, s.user_id, s.material_id,
+       s.laser_type, s.wattage, s.operation_type,
+       s.max_power, s.min_power, s.speed,
+       s.num_passes, s.scan_interval, s.frequency,
+       s.cross_hatch, s.angle, s.angle_per_pass,
+       s.notes, s.created_at, s.updated_at,
        mat.name as material_name, mc.name as category_name,
-       op.name as operation_name,
        COALESCE(SUM(v.value), 0) as vote_score,
        COUNT(v.id) as vote_count
 FROM settings s
-JOIN machine_models mm ON s.machine_model_id = mm.id
-JOIN machine_brands mb ON mm.brand_id = mb.id
 JOIN materials mat ON s.material_id = mat.id
 JOIN material_categories mc ON mat.category_id = mc.id
-JOIN operations op ON s.operation_id = op.id
 LEFT JOIN votes v ON v.setting_id = s.id
 WHERE s.user_id = ?
-GROUP BY s.id, s.user_id, s.machine_model_id, s.material_id, s.operation_id,
-         s.power, s.speed, s.passes, s.frequency, s.dpi, s.notes,
-         s.created_at, s.updated_at,
-         mm.name, mb.name, mat.name, mc.name, op.name
+GROUP BY s.id
 ORDER BY s.created_at DESC
 `
 
 type GetUserSettingsRow struct {
-	ID             int32
-	UserID         int32
-	MachineModelID int32
-	MaterialID     int32
-	OperationID    int32
-	Power          int32
-	Speed          int32
-	Passes         int32
-	Frequency      sql.NullInt32
-	Dpi            sql.NullInt32
-	Notes          sql.NullString
-	CreatedAt      sql.NullTime
-	UpdatedAt      sql.NullTime
-	ModelName      string
-	BrandName      string
-	MaterialName   string
-	CategoryName   string
-	OperationName  string
-	VoteScore      interface{}
-	VoteCount      int64
+	ID            int32
+	UserID        int32
+	MaterialID    int32
+	LaserType     SettingsLaserType
+	Wattage       int32
+	OperationType SettingsOperationType
+	MaxPower      string
+	MinPower      string
+	Speed         string
+	NumPasses     int32
+	ScanInterval  sql.NullString
+	Frequency     sql.NullString
+	CrossHatch    bool
+	Angle         sql.NullString
+	AnglePerPass  sql.NullString
+	Notes         sql.NullString
+	CreatedAt     sql.NullTime
+	UpdatedAt     sql.NullTime
+	MaterialName  string
+	CategoryName  string
+	VoteScore     interface{}
+	VoteCount     int64
 }
 
 func (q *Queries) GetUserSettings(ctx context.Context, userID int32) ([]GetUserSettingsRow, error) {
@@ -765,22 +682,24 @@ func (q *Queries) GetUserSettings(ctx context.Context, userID int32) ([]GetUserS
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
-			&i.MachineModelID,
 			&i.MaterialID,
-			&i.OperationID,
-			&i.Power,
+			&i.LaserType,
+			&i.Wattage,
+			&i.OperationType,
+			&i.MaxPower,
+			&i.MinPower,
 			&i.Speed,
-			&i.Passes,
+			&i.NumPasses,
+			&i.ScanInterval,
 			&i.Frequency,
-			&i.Dpi,
+			&i.CrossHatch,
+			&i.Angle,
+			&i.AnglePerPass,
 			&i.Notes,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.ModelName,
-			&i.BrandName,
 			&i.MaterialName,
 			&i.CategoryName,
-			&i.OperationName,
 			&i.VoteScore,
 			&i.VoteCount,
 		); err != nil {
@@ -896,75 +815,134 @@ func (q *Queries) SearchMaterials(ctx context.Context, arg SearchMaterialsParams
 	return items, nil
 }
 
+const searchMaterialsWithAliases = `-- name: SearchMaterialsWithAliases :many
+SELECT DISTINCT m.id, m.category_id, m.name, m.slug,
+       c.name as category_name
+FROM materials m
+JOIN material_categories c ON m.category_id = c.id
+LEFT JOIN material_aliases ma ON ma.material_id = m.id
+WHERE m.name LIKE CONCAT('%', ?, '%')
+   OR m.slug LIKE CONCAT('%', ?, '%')
+   OR ma.alias LIKE CONCAT('%', ?, '%')
+ORDER BY m.name
+LIMIT 20
+`
+
+type SearchMaterialsWithAliasesParams struct {
+	CONCAT   interface{}
+	CONCAT_2 interface{}
+	CONCAT_3 interface{}
+}
+
+type SearchMaterialsWithAliasesRow struct {
+	ID           int32
+	CategoryID   int32
+	Name         string
+	Slug         string
+	CategoryName string
+}
+
+func (q *Queries) SearchMaterialsWithAliases(ctx context.Context, arg SearchMaterialsWithAliasesParams) ([]SearchMaterialsWithAliasesRow, error) {
+	rows, err := q.db.QueryContext(ctx, searchMaterialsWithAliases, arg.CONCAT, arg.CONCAT_2, arg.CONCAT_3)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchMaterialsWithAliasesRow
+	for rows.Next() {
+		var i SearchMaterialsWithAliasesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.CategoryID,
+			&i.Name,
+			&i.Slug,
+			&i.CategoryName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const searchSettings = `-- name: SearchSettings :many
-SELECT s.id, s.user_id, s.machine_model_id, s.material_id, s.operation_id,
-       s.power, s.speed, s.passes, s.frequency, s.dpi, s.notes,
-       s.created_at, s.updated_at,
+SELECT s.id, s.user_id, s.material_id,
+       s.laser_type, s.wattage, s.operation_type,
+       s.max_power, s.min_power, s.speed,
+       s.num_passes, s.scan_interval, s.frequency,
+       s.cross_hatch, s.angle, s.angle_per_pass,
+       s.notes, s.created_at,
        u.username, u.display_name,
-       mm.name as model_name, mb.name as brand_name,
        mat.name as material_name, mc.name as category_name,
-       op.name as operation_name,
        COALESCE(SUM(v.value), 0) as vote_score,
        COUNT(v.id) as vote_count
 FROM settings s
 JOIN users u ON s.user_id = u.id
-JOIN machine_models mm ON s.machine_model_id = mm.id
-JOIN machine_brands mb ON mm.brand_id = mb.id
 JOIN materials mat ON s.material_id = mat.id
 JOIN material_categories mc ON mat.category_id = mc.id
-JOIN operations op ON s.operation_id = op.id
 LEFT JOIN votes v ON v.setting_id = s.id
-WHERE (? IS NULL OR s.machine_model_id = ?)
-  AND (? IS NULL OR s.material_id = ?)
-  AND (? IS NULL OR s.operation_id = ?)
-GROUP BY s.id, s.user_id, s.machine_model_id, s.material_id, s.operation_id,
-         s.power, s.speed, s.passes, s.frequency, s.dpi, s.notes,
-         s.created_at, s.updated_at,
-         u.username, u.display_name,
-         mm.name, mb.name, mat.name, mc.name, op.name
+WHERE (? IS NULL OR s.material_id = ?)
+  AND (? IS NULL OR s.laser_type = ?)
+  AND (? IS NULL OR s.wattage = ?)
+  AND (? IS NULL OR s.operation_type = ?)
+  AND (? IS NULL OR s.user_id = ?)
+GROUP BY s.id
 ORDER BY vote_score DESC, s.created_at DESC
 LIMIT 50
 `
 
 type SearchSettingsParams struct {
-	MachineModelID sql.NullInt32
-	MaterialID     sql.NullInt32
-	OperationID    sql.NullInt32
+	MaterialID    sql.NullInt32
+	LaserType     NullSettingsLaserType
+	Wattage       sql.NullInt32
+	OperationType NullSettingsOperationType
+	UserID        sql.NullInt32
 }
 
 type SearchSettingsRow struct {
-	ID             int32
-	UserID         int32
-	MachineModelID int32
-	MaterialID     int32
-	OperationID    int32
-	Power          int32
-	Speed          int32
-	Passes         int32
-	Frequency      sql.NullInt32
-	Dpi            sql.NullInt32
-	Notes          sql.NullString
-	CreatedAt      sql.NullTime
-	UpdatedAt      sql.NullTime
-	Username       string
-	DisplayName    sql.NullString
-	ModelName      string
-	BrandName      string
-	MaterialName   string
-	CategoryName   string
-	OperationName  string
-	VoteScore      interface{}
-	VoteCount      int64
+	ID            int32
+	UserID        int32
+	MaterialID    int32
+	LaserType     SettingsLaserType
+	Wattage       int32
+	OperationType SettingsOperationType
+	MaxPower      string
+	MinPower      string
+	Speed         string
+	NumPasses     int32
+	ScanInterval  sql.NullString
+	Frequency     sql.NullString
+	CrossHatch    bool
+	Angle         sql.NullString
+	AnglePerPass  sql.NullString
+	Notes         sql.NullString
+	CreatedAt     sql.NullTime
+	Username      string
+	DisplayName   sql.NullString
+	MaterialName  string
+	CategoryName  string
+	VoteScore     interface{}
+	VoteCount     int64
 }
 
 func (q *Queries) SearchSettings(ctx context.Context, arg SearchSettingsParams) ([]SearchSettingsRow, error) {
 	rows, err := q.db.QueryContext(ctx, searchSettings,
-		arg.MachineModelID,
-		arg.MachineModelID,
 		arg.MaterialID,
 		arg.MaterialID,
-		arg.OperationID,
-		arg.OperationID,
+		arg.LaserType,
+		arg.LaserType,
+		arg.Wattage,
+		arg.Wattage,
+		arg.OperationType,
+		arg.OperationType,
+		arg.UserID,
+		arg.UserID,
 	)
 	if err != nil {
 		return nil, err
@@ -976,24 +954,25 @@ func (q *Queries) SearchSettings(ctx context.Context, arg SearchSettingsParams) 
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
-			&i.MachineModelID,
 			&i.MaterialID,
-			&i.OperationID,
-			&i.Power,
+			&i.LaserType,
+			&i.Wattage,
+			&i.OperationType,
+			&i.MaxPower,
+			&i.MinPower,
 			&i.Speed,
-			&i.Passes,
+			&i.NumPasses,
+			&i.ScanInterval,
 			&i.Frequency,
-			&i.Dpi,
+			&i.CrossHatch,
+			&i.Angle,
+			&i.AnglePerPass,
 			&i.Notes,
 			&i.CreatedAt,
-			&i.UpdatedAt,
 			&i.Username,
 			&i.DisplayName,
-			&i.ModelName,
-			&i.BrandName,
 			&i.MaterialName,
 			&i.CategoryName,
-			&i.OperationName,
 			&i.VoteScore,
 			&i.VoteCount,
 		); err != nil {
@@ -1011,29 +990,84 @@ func (q *Queries) SearchSettings(ctx context.Context, arg SearchSettingsParams) 
 }
 
 const updateSetting = `-- name: UpdateSetting :exec
-UPDATE settings
-SET power = ?, speed = ?, passes = ?, frequency = ?, dpi = ?, notes = ?
+UPDATE settings SET
+    max_power = ?, min_power = ?, max_power2 = ?, min_power2 = ?, speed = ?,
+    num_passes = ?, z_offset = ?, z_per_pass = ?,
+    scan_interval = ?, angle = ?, angle_per_pass = ?,
+    cross_hatch = ?, bidir = ?, scan_opt = ?,
+    flood_fill = ?, auto_rotate = ?, overscan = ?, overscan_percent = ?,
+    frequency = ?, wobble_enable = ?, use_dot_correction = ?,
+    kerf = ?, run_blower = ?,
+    layer_name = ?, layer_subname = ?,
+    priority = ?, tab_count = ?, tab_count_max = ?,
+    notes = ?
 WHERE id = ? AND user_id = ?
 `
 
 type UpdateSettingParams struct {
-	Power     int32
-	Speed     int32
-	Passes    int32
-	Frequency sql.NullInt32
-	Dpi       sql.NullInt32
-	Notes     sql.NullString
-	ID        int32
-	UserID    int32
+	MaxPower         string
+	MinPower         string
+	MaxPower2        sql.NullString
+	MinPower2        sql.NullString
+	Speed            string
+	NumPasses        int32
+	ZOffset          sql.NullString
+	ZPerPass         sql.NullString
+	ScanInterval     sql.NullString
+	Angle            sql.NullString
+	AnglePerPass     sql.NullString
+	CrossHatch       bool
+	Bidir            bool
+	ScanOpt          sql.NullString
+	FloodFill        bool
+	AutoRotate       bool
+	Overscan         sql.NullString
+	OverscanPercent  sql.NullString
+	Frequency        sql.NullString
+	WobbleEnable     sql.NullBool
+	UseDotCorrection sql.NullBool
+	Kerf             sql.NullString
+	RunBlower        sql.NullBool
+	LayerName        sql.NullString
+	LayerSubname     sql.NullString
+	Priority         sql.NullInt32
+	TabCount         sql.NullInt32
+	TabCountMax      sql.NullInt32
+	Notes            sql.NullString
+	ID               int32
+	UserID           int32
 }
 
 func (q *Queries) UpdateSetting(ctx context.Context, arg UpdateSettingParams) error {
 	_, err := q.db.ExecContext(ctx, updateSetting,
-		arg.Power,
+		arg.MaxPower,
+		arg.MinPower,
+		arg.MaxPower2,
+		arg.MinPower2,
 		arg.Speed,
-		arg.Passes,
+		arg.NumPasses,
+		arg.ZOffset,
+		arg.ZPerPass,
+		arg.ScanInterval,
+		arg.Angle,
+		arg.AnglePerPass,
+		arg.CrossHatch,
+		arg.Bidir,
+		arg.ScanOpt,
+		arg.FloodFill,
+		arg.AutoRotate,
+		arg.Overscan,
+		arg.OverscanPercent,
 		arg.Frequency,
-		arg.Dpi,
+		arg.WobbleEnable,
+		arg.UseDotCorrection,
+		arg.Kerf,
+		arg.RunBlower,
+		arg.LayerName,
+		arg.LayerSubname,
+		arg.Priority,
+		arg.TabCount,
+		arg.TabCountMax,
 		arg.Notes,
 		arg.ID,
 		arg.UserID,

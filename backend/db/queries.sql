@@ -22,42 +22,6 @@ INSERT INTO users (username, email, password_hash, display_name)
 VALUES (?, ?, ?, ?);
 
 -- =====================
--- MACHINE BRANDS
--- =====================
-
--- name: GetAllBrands :many
-SELECT id, name, slug
-FROM machine_brands
-ORDER BY name;
-
--- name: GetBrandByID :one
-SELECT id, name, slug
-FROM machine_brands
-WHERE id = ?;
-
--- =====================
--- MACHINE MODELS
--- =====================
-
--- name: GetModelsByBrand :many
-SELECT id, brand_id, name, laser_type, wattage, slug
-FROM machine_models
-WHERE brand_id = ?
-ORDER BY name;
-
--- name: GetModelByID :one
-SELECT id, brand_id, name, laser_type, wattage, slug
-FROM machine_models
-WHERE id = ?;
-
--- name: GetAllModels :many
-SELECT m.id, m.brand_id, m.name, m.laser_type, m.wattage, m.slug,
-       b.name as brand_name
-FROM machine_models m
-JOIN machine_brands b ON m.brand_id = b.id
-ORDER BY b.name, m.name;
-
--- =====================
 -- MATERIAL CATEGORIES
 -- =====================
 
@@ -100,6 +64,18 @@ WHERE m.name LIKE CONCAT('%', ?, '%')
 ORDER BY m.name
 LIMIT 20;
 
+-- name: SearchMaterialsWithAliases :many
+SELECT DISTINCT m.id, m.category_id, m.name, m.slug,
+       c.name as category_name
+FROM materials m
+JOIN material_categories c ON m.category_id = c.id
+LEFT JOIN material_aliases ma ON ma.material_id = m.id
+WHERE m.name LIKE CONCAT('%', ?, '%')
+   OR m.slug LIKE CONCAT('%', ?, '%')
+   OR ma.alias LIKE CONCAT('%', ?, '%')
+ORDER BY m.name
+LIMIT 20;
+
 -- name: GetAliasesByMaterial :many
 SELECT id, material_id, alias
 FROM material_aliases
@@ -107,128 +83,136 @@ WHERE material_id = ?
 ORDER BY alias;
 
 -- =====================
--- OPERATIONS
--- =====================
-
--- name: GetAllOperations :many
-SELECT id, name
-FROM operations
-ORDER BY name;
-
--- =====================
 -- SETTINGS
 -- =====================
 
 -- name: GetSettingByID :one
-SELECT s.id, s.user_id, s.machine_model_id, s.material_id, s.operation_id,
-       s.power, s.speed, s.passes, s.frequency, s.dpi, s.notes,
-       s.created_at, s.updated_at,
+SELECT s.id, s.user_id, s.material_id,
+       s.laser_type, s.wattage, s.operation_type,
+       s.max_power, s.min_power, s.max_power2, s.min_power2, s.speed,
+       s.num_passes, s.z_offset, s.z_per_pass,
+       s.scan_interval, s.angle, s.angle_per_pass,
+       s.cross_hatch, s.bidir, s.scan_opt,
+       s.flood_fill, s.auto_rotate, s.overscan, s.overscan_percent,
+       s.frequency, s.wobble_enable, s.use_dot_correction,
+       s.kerf, s.run_blower,
+       s.layer_name, s.layer_subname,
+       s.priority, s.tab_count, s.tab_count_max,
+       s.notes, s.created_at, s.updated_at,
        u.username, u.display_name,
-       mm.name as model_name, mb.name as brand_name,
        mat.name as material_name, mc.name as category_name,
-       op.name as operation_name,
        COALESCE(SUM(v.value), 0) as vote_score,
        COUNT(v.id) as vote_count
 FROM settings s
 JOIN users u ON s.user_id = u.id
-JOIN machine_models mm ON s.machine_model_id = mm.id
-JOIN machine_brands mb ON mm.brand_id = mb.id
 JOIN materials mat ON s.material_id = mat.id
 JOIN material_categories mc ON mat.category_id = mc.id
-JOIN operations op ON s.operation_id = op.id
 LEFT JOIN votes v ON v.setting_id = s.id
 WHERE s.id = ?
-GROUP BY s.id, s.user_id, s.machine_model_id, s.material_id, s.operation_id,
-         s.power, s.speed, s.passes, s.frequency, s.dpi, s.notes,
-         s.created_at, s.updated_at,
-         u.username, u.display_name,
-         mm.name, mb.name, mat.name, mc.name, op.name;
+GROUP BY s.id;
 
 -- name: SearchSettings :many
-SELECT s.id, s.user_id, s.machine_model_id, s.material_id, s.operation_id,
-       s.power, s.speed, s.passes, s.frequency, s.dpi, s.notes,
-       s.created_at, s.updated_at,
+SELECT s.id, s.user_id, s.material_id,
+       s.laser_type, s.wattage, s.operation_type,
+       s.max_power, s.min_power, s.speed,
+       s.num_passes, s.scan_interval, s.frequency,
+       s.cross_hatch, s.angle, s.angle_per_pass,
+       s.notes, s.created_at,
        u.username, u.display_name,
-       mm.name as model_name, mb.name as brand_name,
        mat.name as material_name, mc.name as category_name,
-       op.name as operation_name,
        COALESCE(SUM(v.value), 0) as vote_score,
        COUNT(v.id) as vote_count
 FROM settings s
 JOIN users u ON s.user_id = u.id
-JOIN machine_models mm ON s.machine_model_id = mm.id
-JOIN machine_brands mb ON mm.brand_id = mb.id
 JOIN materials mat ON s.material_id = mat.id
 JOIN material_categories mc ON mat.category_id = mc.id
-JOIN operations op ON s.operation_id = op.id
 LEFT JOIN votes v ON v.setting_id = s.id
-WHERE (sqlc.narg(machine_model_id) IS NULL OR s.machine_model_id = sqlc.narg(machine_model_id))
-  AND (sqlc.narg(material_id) IS NULL OR s.material_id = sqlc.narg(material_id))
-  AND (sqlc.narg(operation_id) IS NULL OR s.operation_id = sqlc.narg(operation_id))
-GROUP BY s.id, s.user_id, s.machine_model_id, s.material_id, s.operation_id,
-         s.power, s.speed, s.passes, s.frequency, s.dpi, s.notes,
-         s.created_at, s.updated_at,
-         u.username, u.display_name,
-         mm.name, mb.name, mat.name, mc.name, op.name
+WHERE (sqlc.narg(material_id) IS NULL OR s.material_id = sqlc.narg(material_id))
+  AND (sqlc.narg(laser_type) IS NULL OR s.laser_type = sqlc.narg(laser_type))
+  AND (sqlc.narg(wattage) IS NULL OR s.wattage = sqlc.narg(wattage))
+  AND (sqlc.narg(operation_type) IS NULL OR s.operation_type = sqlc.narg(operation_type))
+  AND (sqlc.narg(user_id) IS NULL OR s.user_id = sqlc.narg(user_id))
+GROUP BY s.id
 ORDER BY vote_score DESC, s.created_at DESC
 LIMIT 50;
 
 -- name: GetTopSettings :many
-SELECT s.id, s.user_id, s.machine_model_id, s.material_id, s.operation_id,
-       s.power, s.speed, s.passes, s.frequency, s.dpi, s.notes,
-       s.created_at, s.updated_at,
+SELECT s.id, s.user_id, s.material_id,
+       s.laser_type, s.wattage, s.operation_type,
+       s.max_power, s.min_power, s.speed,
+       s.num_passes, s.scan_interval, s.frequency,
+       s.cross_hatch, s.angle, s.angle_per_pass,
+       s.notes, s.created_at,
        u.username, u.display_name,
-       mm.name as model_name, mb.name as brand_name,
        mat.name as material_name, mc.name as category_name,
-       op.name as operation_name,
        COALESCE(SUM(v.value), 0) as vote_score,
        COUNT(v.id) as vote_count
 FROM settings s
 JOIN users u ON s.user_id = u.id
-JOIN machine_models mm ON s.machine_model_id = mm.id
-JOIN machine_brands mb ON mm.brand_id = mb.id
 JOIN materials mat ON s.material_id = mat.id
 JOIN material_categories mc ON mat.category_id = mc.id
-JOIN operations op ON s.operation_id = op.id
 LEFT JOIN votes v ON v.setting_id = s.id
-GROUP BY s.id, s.user_id, s.machine_model_id, s.material_id, s.operation_id,
-         s.power, s.speed, s.passes, s.frequency, s.dpi, s.notes,
-         s.created_at, s.updated_at,
-         u.username, u.display_name,
-         mm.name, mb.name, mat.name, mc.name, op.name
+GROUP BY s.id
 ORDER BY vote_score DESC
 LIMIT 20;
 
 -- name: GetUserSettings :many
-SELECT s.id, s.user_id, s.machine_model_id, s.material_id, s.operation_id,
-       s.power, s.speed, s.passes, s.frequency, s.dpi, s.notes,
-       s.created_at, s.updated_at,
-       mm.name as model_name, mb.name as brand_name,
+SELECT s.id, s.user_id, s.material_id,
+       s.laser_type, s.wattage, s.operation_type,
+       s.max_power, s.min_power, s.speed,
+       s.num_passes, s.scan_interval, s.frequency,
+       s.cross_hatch, s.angle, s.angle_per_pass,
+       s.notes, s.created_at, s.updated_at,
        mat.name as material_name, mc.name as category_name,
-       op.name as operation_name,
        COALESCE(SUM(v.value), 0) as vote_score,
        COUNT(v.id) as vote_count
 FROM settings s
-JOIN machine_models mm ON s.machine_model_id = mm.id
-JOIN machine_brands mb ON mm.brand_id = mb.id
 JOIN materials mat ON s.material_id = mat.id
 JOIN material_categories mc ON mat.category_id = mc.id
-JOIN operations op ON s.operation_id = op.id
 LEFT JOIN votes v ON v.setting_id = s.id
 WHERE s.user_id = ?
-GROUP BY s.id, s.user_id, s.machine_model_id, s.material_id, s.operation_id,
-         s.power, s.speed, s.passes, s.frequency, s.dpi, s.notes,
-         s.created_at, s.updated_at,
-         mm.name, mb.name, mat.name, mc.name, op.name
+GROUP BY s.id
 ORDER BY s.created_at DESC;
 
 -- name: CreateSetting :execresult
-INSERT INTO settings (user_id, machine_model_id, material_id, operation_id, power, speed, passes, frequency, dpi, notes)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO settings (
+    user_id, material_id, laser_type, wattage, operation_type,
+    max_power, min_power, max_power2, min_power2, speed,
+    num_passes, z_offset, z_per_pass,
+    scan_interval, angle, angle_per_pass,
+    cross_hatch, bidir, scan_opt,
+    flood_fill, auto_rotate, overscan, overscan_percent,
+    frequency, wobble_enable, use_dot_correction,
+    kerf, run_blower,
+    layer_name, layer_subname,
+    priority, tab_count, tab_count_max,
+    notes
+) VALUES (
+    ?, ?, ?, ?, ?,
+    ?, ?, ?, ?, ?,
+    ?, ?, ?,
+    ?, ?, ?,
+    ?, ?, ?,
+    ?, ?, ?, ?,
+    ?, ?, ?,
+    ?, ?,
+    ?, ?,
+    ?, ?, ?,
+    ?
+);
 
 -- name: UpdateSetting :exec
-UPDATE settings
-SET power = ?, speed = ?, passes = ?, frequency = ?, dpi = ?, notes = ?
+UPDATE settings SET
+    max_power = ?, min_power = ?, max_power2 = ?, min_power2 = ?, speed = ?,
+    num_passes = ?, z_offset = ?, z_per_pass = ?,
+    scan_interval = ?, angle = ?, angle_per_pass = ?,
+    cross_hatch = ?, bidir = ?, scan_opt = ?,
+    flood_fill = ?, auto_rotate = ?, overscan = ?, overscan_percent = ?,
+    frequency = ?, wobble_enable = ?, use_dot_correction = ?,
+    kerf = ?, run_blower = ?,
+    layer_name = ?, layer_subname = ?,
+    priority = ?, tab_count = ?, tab_count_max = ?,
+    notes = ?
 WHERE id = ? AND user_id = ?;
 
 -- name: DeleteSetting :exec

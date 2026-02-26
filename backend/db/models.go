@@ -10,62 +10,92 @@ import (
 	"fmt"
 )
 
-type MachineModelsLaserType string
+type SettingsLaserType string
 
 const (
-	MachineModelsLaserTypeCO2   MachineModelsLaserType = "CO2"
-	MachineModelsLaserTypeDiode MachineModelsLaserType = "Diode"
-	MachineModelsLaserTypeFiber MachineModelsLaserType = "Fiber"
+	SettingsLaserTypeCO2      SettingsLaserType = "CO2"
+	SettingsLaserTypeFiber    SettingsLaserType = "Fiber"
+	SettingsLaserTypeDiode    SettingsLaserType = "Diode"
+	SettingsLaserTypeUV       SettingsLaserType = "UV"
+	SettingsLaserTypeInfrared SettingsLaserType = "Infrared"
 )
 
-func (e *MachineModelsLaserType) Scan(src interface{}) error {
+func (e *SettingsLaserType) Scan(src interface{}) error {
 	switch s := src.(type) {
 	case []byte:
-		*e = MachineModelsLaserType(s)
+		*e = SettingsLaserType(s)
 	case string:
-		*e = MachineModelsLaserType(s)
+		*e = SettingsLaserType(s)
 	default:
-		return fmt.Errorf("unsupported scan type for MachineModelsLaserType: %T", src)
+		return fmt.Errorf("unsupported scan type for SettingsLaserType: %T", src)
 	}
 	return nil
 }
 
-type NullMachineModelsLaserType struct {
-	MachineModelsLaserType MachineModelsLaserType
-	Valid                  bool // Valid is true if MachineModelsLaserType is not NULL
+type NullSettingsLaserType struct {
+	SettingsLaserType SettingsLaserType
+	Valid             bool // Valid is true if SettingsLaserType is not NULL
 }
 
 // Scan implements the Scanner interface.
-func (ns *NullMachineModelsLaserType) Scan(value interface{}) error {
+func (ns *NullSettingsLaserType) Scan(value interface{}) error {
 	if value == nil {
-		ns.MachineModelsLaserType, ns.Valid = "", false
+		ns.SettingsLaserType, ns.Valid = "", false
 		return nil
 	}
 	ns.Valid = true
-	return ns.MachineModelsLaserType.Scan(value)
+	return ns.SettingsLaserType.Scan(value)
 }
 
 // Value implements the driver Valuer interface.
-func (ns NullMachineModelsLaserType) Value() (driver.Value, error) {
+func (ns NullSettingsLaserType) Value() (driver.Value, error) {
 	if !ns.Valid {
 		return nil, nil
 	}
-	return string(ns.MachineModelsLaserType), nil
+	return string(ns.SettingsLaserType), nil
 }
 
-type MachineBrand struct {
-	ID   int32
-	Name string
-	Slug string
+type SettingsOperationType string
+
+const (
+	SettingsOperationTypeCut     SettingsOperationType = "Cut"
+	SettingsOperationTypeScan    SettingsOperationType = "Scan"
+	SettingsOperationTypeScanCut SettingsOperationType = "ScanCut"
+)
+
+func (e *SettingsOperationType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = SettingsOperationType(s)
+	case string:
+		*e = SettingsOperationType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for SettingsOperationType: %T", src)
+	}
+	return nil
 }
 
-type MachineModel struct {
-	ID        int32
-	BrandID   int32
-	Name      string
-	LaserType MachineModelsLaserType
-	Wattage   int32
-	Slug      string
+type NullSettingsOperationType struct {
+	SettingsOperationType SettingsOperationType
+	Valid                 bool // Valid is true if SettingsOperationType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullSettingsOperationType) Scan(value interface{}) error {
+	if value == nil {
+		ns.SettingsOperationType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.SettingsOperationType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullSettingsOperationType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.SettingsOperationType), nil
 }
 
 type Material struct {
@@ -86,25 +116,44 @@ type MaterialCategory struct {
 	Name string
 }
 
-type Operation struct {
-	ID   int32
-	Name string
-}
-
 type Setting struct {
-	ID             int32
-	UserID         int32
-	MachineModelID int32
-	MaterialID     int32
-	OperationID    int32
-	Power          int32
-	Speed          int32
-	Passes         int32
-	Frequency      sql.NullInt32
-	Dpi            sql.NullInt32
-	Notes          sql.NullString
-	CreatedAt      sql.NullTime
-	UpdatedAt      sql.NullTime
+	ID               int32
+	UserID           int32
+	MaterialID       int32
+	LaserType        SettingsLaserType
+	Wattage          int32
+	OperationType    SettingsOperationType
+	MaxPower         string
+	MinPower         string
+	MaxPower2        sql.NullString
+	MinPower2        sql.NullString
+	Speed            string
+	NumPasses        int32
+	ZOffset          sql.NullString
+	ZPerPass         sql.NullString
+	ScanInterval     sql.NullString
+	Angle            sql.NullString
+	AnglePerPass     sql.NullString
+	CrossHatch       bool
+	Bidir            bool
+	ScanOpt          sql.NullString
+	FloodFill        bool
+	AutoRotate       bool
+	Overscan         sql.NullString
+	OverscanPercent  sql.NullString
+	Frequency        sql.NullString
+	WobbleEnable     sql.NullBool
+	UseDotCorrection sql.NullBool
+	Kerf             sql.NullString
+	RunBlower        sql.NullBool
+	LayerName        sql.NullString
+	LayerSubname     sql.NullString
+	Priority         sql.NullInt32
+	TabCount         sql.NullInt32
+	TabCountMax      sql.NullInt32
+	Notes            sql.NullString
+	CreatedAt        sql.NullTime
+	UpdatedAt        sql.NullTime
 }
 
 type User struct {
