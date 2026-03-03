@@ -19,31 +19,44 @@ function HomePage() {
   return (
     <div className="min-h-screen">
       {/* Hero with branded logos */}
-      <section className="relative px-6 py-24 lg:py-32 overflow-hidden">
+      <section className="relative px-6 py-12 lg:py-16 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-ls-accent/5 via-transparent to-ls-blue/5" />
         <div className="relative max-w-4xl mx-auto text-center" style={{ animation: 'fade-in-up 0.6s ease-out' }}>
 
+          {/* Under Construction Badge - Moved to Top */}
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-ls-accent/10 border border-ls-accent/20 rounded-full mb-4">
+            <span className="w-2 h-2 bg-ls-accent rounded-full animate-pulse" />
+            <span className="text-sm text-ls-accent font-medium">Under Construction</span>
+          </div>
+
           {/* Laserscribed logo */}
-          <div className="mb-10">
+          <div className="mb-3">
             <div className="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight leading-none">
-              <span className="text-white">Laser</span>
-              <span className="text-ls-accent">scribed</span>
+              <span className="text-white">Laser</span><span className="text-ls-accent">scribed</span>
             </div>
             <div className="mt-1.5 text-sm sm:text-base font-semibold text-gray-500 uppercase" style={{ letterSpacing: '0.35em' }}>
               Precision Engraving Hub
             </div>
           </div>
 
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-8 leading-tight">
-            Hello, <span className="text-ls-accent">World</span>
-          </h1>
+          {/* Welcome Message */}
+          <p className="text-xl sm:text-2xl text-ls-text mb-4 leading-relaxed">
+            Welcome to the <span className="text-ls-accent font-semibold">Laserscribed</span> community —
+            your hub for precision laser engraving and cutting resources.
+          </p>
 
           {/* Divider */}
-          <div className="w-16 h-[3px] bg-gradient-to-r from-ls-accent to-ls-accent-dark rounded-full mx-auto mb-8" />
+          <div className="w-32 h-[5px] bg-gradient-to-r from-ls-accent to-ls-accent-dark rounded-full mx-auto mb-5" />
+
+          {/* CTA Text */}
+          <h2 className="text-2xl sm:text-3xl font-bold mb-4">Ready to stop guessing?</h2>
+          <p className="text-ls-text-muted mb-8">
+            Join the community and find your settings in seconds, not hours.
+          </p>
 
           {/* PowerScale logo */}
           <div className="mb-6">
-            <div className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-none inline-block">
+            <div className="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight leading-none inline-block">
               <span className="text-white">P</span>
               <span className="relative inline-block">
                 <span className="invisible">o</span>
@@ -52,31 +65,21 @@ function HomePage() {
               <span className="text-white">wer</span>
               <span className="text-ls-accent">Scale</span>
             </div>
-            <div className="mt-1.5 text-xs sm:text-sm font-semibold text-gray-500 uppercase" style={{ letterSpacing: '0.25em' }}>
+            <div className="mt-1.5 text-sm sm:text-base font-semibold text-gray-500 uppercase" style={{ letterSpacing: '0.35em' }}>
               Crowd-Sourced Laser Settings
             </div>
           </div>
 
-          <p className="text-lg text-ls-text-muted max-w-lg mx-auto mb-6">
+          <p className="text-lg text-ls-text-muted max-w-2xl mx-auto mb-8">
             <strong className="text-ls-text">PowerScale</strong> is a crowd-sourced, vote-validated database
             of laser engraving and cutting settings. Find the right power, speed, and passes for your machine
             and material — backed by the community.
           </p>
 
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-ls-accent/10 border border-ls-accent/20 rounded-full mb-10">
-            <span className="w-2 h-2 bg-ls-accent rounded-full animate-pulse" />
-            <span className="text-sm text-ls-accent font-medium">Under Construction</span>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/search">
+          <div className="flex justify-center">
+            <Link to="/powerscale">
               <Button size="lg">
-                Search Settings
-              </Button>
-            </Link>
-            <Link to="/contribute">
-              <Button variant="outline" size="lg">
-                Contribute Your Settings
+                Try PowerScale Now
               </Button>
             </Link>
           </div>
@@ -84,9 +87,9 @@ function HomePage() {
       </section>
 
       {/* How it works */}
-      <section className="px-6 py-20 border-t border-ls-border">
+      <section className="px-6 py-10 border-t border-ls-border">
         <div className="max-w-5xl mx-auto">
-          <h2 className="text-2xl sm:text-3xl font-bold text-center mb-12">
+          <h2 className="text-2xl sm:text-3xl font-bold text-center mb-6">
             How <span className="text-ls-accent">PowerScale</span> Works
           </h2>
 
@@ -109,13 +112,13 @@ function HomePage() {
               },
             ].map((item) => (
               <div key={item.title} className="text-center p-6">
-                <div className="w-14 h-14 mx-auto mb-4 bg-ls-accent/10 border border-ls-accent/20 rounded-xl flex items-center justify-center">
-                  <svg className="w-7 h-7 text-ls-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-20 h-20 mx-auto mb-6 bg-ls-accent/10 border border-ls-accent/20 rounded-xl flex items-center justify-center">
+                  <svg className="w-10 h-10 text-ls-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
                   </svg>
                 </div>
-                <h3 className="text-lg font-semibold text-ls-text mb-2">{item.title}</h3>
-                <p className="text-sm text-ls-text-muted">{item.desc}</p>
+                <h3 className="text-2xl font-semibold text-ls-text mb-3">{item.title}</h3>
+                <p className="text-base text-ls-text-muted">{item.desc}</p>
               </div>
             ))}
           </div>
@@ -123,37 +126,21 @@ function HomePage() {
       </section>
 
       {/* Supported machines */}
-      <section className="px-6 py-20 bg-ls-darker/50 border-t border-ls-border">
+      <section className="px-6 py-10 bg-ls-darker/50 border-t border-ls-border">
         <div className="max-w-5xl mx-auto text-center">
-          <h2 className="text-2xl sm:text-3xl font-bold mb-4">Machines We Support</h2>
-          <p className="text-ls-text-muted mb-10">CO2, Diode, and Fiber lasers from all major brands</p>
-          <div className="flex flex-wrap justify-center gap-4">
-            {['xTool', 'Glowforge', 'OmTech', 'Ortur', 'Atomstack', 'Thunder Laser', 'Boss Laser', 'Epilog', 'Creality'].map((brand) => (
-              <span
-                key={brand}
-                className="px-4 py-2 bg-ls-surface border border-ls-border rounded-lg text-sm text-ls-text-muted hover:border-ls-accent/30 hover:text-ls-text transition-all"
-              >
-                {brand}
-              </span>
-            ))}
-          </div>
+          <h2 className="text-2xl sm:text-3xl font-bold mb-2">Types of Machines We Support</h2>
+          <p className="text-ls-text-muted">CO2, Diode, and Fiber lasers from all major brands</p>
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="px-6 py-20 border-t border-ls-border">
-        <div className="max-w-2xl mx-auto text-center">
-          <h2 className="text-2xl sm:text-3xl font-bold mb-4">Ready to stop guessing?</h2>
-          <p className="text-ls-text-muted mb-8">
-            Join the community and find your settings in seconds, not hours.
+      {/* Footer */}
+      <footer className="px-6 py-6 border-t border-ls-border">
+        <div className="max-w-5xl mx-auto text-center">
+          <p className="text-sm text-ls-text-muted">
+            Created by William Scott Downs &copy; 2026
           </p>
-          <Link to="/search">
-            <Button size="lg">
-              Open PowerScale
-            </Button>
-          </Link>
         </div>
-      </section>
+      </footer>
     </div>
   )
 }

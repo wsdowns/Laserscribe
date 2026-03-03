@@ -4,52 +4,43 @@ import { Select, SelectItem } from './ui/Select'
 import Input from './ui/Input'
 import Button from './ui/Button'
 
-function ContributeForm({ user }) {
+function ContributeForm({ user, initialMode = 'manual' }) {
   const queryClient = useQueryClient()
+  const [mode, setMode] = useState(initialMode) // 'manual' or 'import'
   const [form, setForm] = useState({
-    brandId: '',
-    machineModelId: '',
-    materialId: '',
-    operationId: '',
-    power: '',
+    materialName: '',
+    laserType: '',
+    wattage: '',
+    mode: '',
+    maxPower: '',
     speed: '',
-    passes: '1',
+    numPasses: '1',
     frequency: '',
-    dpi: '',
+    scanInterval: '',
+    layerName: '',
     notes: '',
+  })
+  const [importForm, setImportForm] = useState({
+    file: null,
+    laserMakeModel: '',
+    laserType: '',
+    wattage: '',
   })
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
+  const [importResult, setImportResult] = useState(null)
 
-  const { data: brands } = useQuery({
-    queryKey: ['brands'],
-    queryFn: () => fetch('/api/brands').then(r => r.json()),
-  })
-
-  const { data: models } = useQuery({
-    queryKey: ['models', form.brandId],
-    queryFn: () => fetch(`/api/brands/${form.brandId}/models`).then(r => r.json()),
-    enabled: !!form.brandId,
-  })
-
-  const { data: materials } = useQuery({
-    queryKey: ['materials'],
-    queryFn: () => fetch('/api/materials').then(r => r.json()),
-  })
-
-  const { data: operations } = useQuery({
-    queryKey: ['operations'],
-    queryFn: () => fetch('/api/operations').then(r => r.json()),
+  const { data: categories } = useQuery({
+    queryKey: ['categories'],
+    queryFn: () => fetch('/api/categories', { credentials: 'include' }).then(r => r.json()),
   })
 
   const mutation = useMutation({
     mutationFn: (data) =>
       fetch('/api/settings', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${user.token}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(data),
       }).then(async (r) => {
         if (!r.ok) {
@@ -63,8 +54,9 @@ function ContributeForm({ user }) {
       setError('')
       queryClient.invalidateQueries({ queryKey: ['settings'] })
       setForm({
-        brandId: '', machineModelId: '', materialId: '', operationId: '',
-        power: '', speed: '', passes: '1', frequency: '', dpi: '', notes: '',
+        materialName: '', laserType: '', wattage: '', mode: '',
+        maxPower: '', speed: '', numPasses: '1',
+        frequency: '', scanInterval: '', layerName: '', notes: '',
       })
     },
     onError: (err) => {
@@ -73,151 +65,354 @@ function ContributeForm({ user }) {
     },
   })
 
-  function handleSubmit(e) {
+  const importMutation = useMutation({
+    mutationFn: (formData) =>
+      fetch('/api/settings/import', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      }).then(async (r) => {
+        if (!r.ok) {
+          const err = await r.json()
+          throw new Error(err.error || 'Failed to import')
+        }
+        return r.json()
+      }),
+    onSuccess: (data) => {
+      setImportResult(data)
+      setError('')
+      queryClient.invalidateQueries({ queryKey: ['settings'] })
+      setImportForm({ file: null, laserMakeModel: '', laserType: '', wattage: '' })
+    },
+    onError: (err) => {
+      setError(err.message)
+      setImportResult(null)
+    },
+  })
+
+  function handleManualSubmit(e) {
     e.preventDefault()
     setError('')
     setSuccess(false)
 
     const data = {
-      machineModelId: parseInt(form.machineModelId),
-      materialId: parseInt(form.materialId),
-      operationId: parseInt(form.operationId),
-      power: parseInt(form.power),
-      speed: parseInt(form.speed),
-      passes: parseInt(form.passes) || 1,
-      notes: form.notes,
+      materialName: form.materialName,
+      laserType: form.laserType,
+      wattage: parseInt(form.wattage),
+      mode: form.mode,
+      maxPower: form.maxPower,
+      speed: form.speed,
+      numPasses: parseInt(form.numPasses) || 1,
     }
 
-    if (form.frequency) data.frequency = parseInt(form.frequency)
-    if (form.dpi) data.dpi = parseInt(form.dpi)
+    if (form.frequency) data.frequency = form.frequency
+    if (form.scanInterval) data.scanInterval = form.scanInterval
+    if (form.layerName) data.layerName = form.layerName
+    if (form.notes) data.notes = form.notes
 
     mutation.mutate(data)
   }
 
+  function handleImportSubmit(e) {
+    e.preventDefault()
+    setError('')
+    setImportResult(null)
+
+    if (!importForm.file) {
+      setError('Please select a .clb file')
+      return
+    }
+
+    const formData = new FormData()
+    formData.append('file', importForm.file)
+    formData.append('laserMakeModel', importForm.laserMakeModel)
+    formData.append('laserType', importForm.laserType)
+    formData.append('wattage', importForm.wattage)
+
+    importMutation.mutate(formData)
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {success && (
+    <div className="space-y-6">
+      {/* Mode Toggle */}
+      <div className="flex gap-2 p-1 bg-ls-surface rounded-lg">
+        <button
+          type="button"
+          onClick={() => setMode('manual')}
+          className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            mode === 'manual'
+              ? 'bg-ls-accent text-white'
+              : 'text-ls-text-muted hover:text-ls-text'
+          }`}
+        >
+          Manual Entry
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode('import')}
+          className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            mode === 'import'
+              ? 'bg-ls-accent text-white'
+              : 'text-ls-text-muted hover:text-ls-text'
+          }`}
+        >
+          Import .CLB File
+        </button>
+      </div>
+
+      {success && mode === 'manual' && (
         <div className="bg-ls-green/10 border border-ls-green/30 rounded-lg p-4 text-ls-green text-sm">
-          Setting submitted successfully! It's now live on PowerScale.
+          Setting submitted successfully! It's now live on Laserscribe.
         </div>
       )}
+
+      {importResult && mode === 'import' && (
+        <div className="bg-ls-green/10 border border-ls-green/30 rounded-lg p-4 text-sm">
+          <p className="text-ls-green font-medium mb-2">Import completed!</p>
+          <p className="text-ls-text-muted">
+            ✅ {importResult.imported} settings imported successfully
+          </p>
+          {importResult.failed > 0 && (
+            <p className="text-ls-red mt-1">
+              ❌ {importResult.failed} settings failed (likely duplicates)
+            </p>
+          )}
+        </div>
+      )}
+
       {error && (
         <div className="bg-ls-red/10 border border-ls-red/30 rounded-lg p-4 text-ls-red text-sm">
           {error}
         </div>
       )}
 
-      {/* Machine selection */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Select
-          label="Machine Brand"
-          placeholder="Select brand..."
-          value={form.brandId}
-          onValueChange={(val) => setForm({ ...form, brandId: val, machineModelId: '' })}
-        >
-          {(brands || []).map((b) => (
-            <SelectItem key={b.ID} value={String(b.ID)}>{b.Name}</SelectItem>
-          ))}
-        </Select>
+      {/* Manual Entry Form */}
+      {mode === 'manual' && (
+        <form onSubmit={handleManualSubmit} className="space-y-6">
+          {/* Laser Configuration */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium text-ls-text">Laser Configuration</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Select
+                label="Laser Type"
+                placeholder="Select type..."
+                value={form.laserType}
+                onValueChange={(val) => setForm({ ...form, laserType: val })}
+              >
+                <SelectItem value="CO2">CO2</SelectItem>
+                <SelectItem value="Fiber">Fiber</SelectItem>
+                <SelectItem value="Diode">Diode</SelectItem>
+                <SelectItem value="UV">UV</SelectItem>
+                <SelectItem value="Infrared">Infrared</SelectItem>
+              </Select>
 
-        <Select
-          label="Machine Model"
-          placeholder={form.brandId ? 'Select model...' : 'Select brand first'}
-          value={form.machineModelId}
-          onValueChange={(val) => setForm({ ...form, machineModelId: val })}
-        >
-          {(models || []).map((m) => (
-            <SelectItem key={m.ID} value={String(m.ID)}>
-              {m.Name} ({m.LaserType} {m.Wattage}W)
-            </SelectItem>
-          ))}
-        </Select>
-      </div>
+              <Input
+                label="Wattage (W)"
+                id="wattage"
+                type="number"
+                min="1"
+                placeholder="e.g., 50"
+                value={form.wattage}
+                onChange={(e) => setForm({ ...form, wattage: e.target.value })}
+                required
+              />
 
-      {/* Material + Operation */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Select
-          label="Material"
-          placeholder="Select material..."
-          value={form.materialId}
-          onValueChange={(val) => setForm({ ...form, materialId: val })}
-        >
-          {(materials || []).map((m) => (
-            <SelectItem key={m.ID} value={String(m.ID)}>{m.Name}</SelectItem>
-          ))}
-        </Select>
+              <Input
+                label="Laser Make/Model"
+                id="layerName"
+                placeholder="e.g., Gweike G2 Max 50"
+                value={form.layerName}
+                onChange={(e) => setForm({ ...form, layerName: e.target.value })}
+              />
+            </div>
+          </div>
 
-        <Select
-          label="Operation"
-          placeholder="Select operation..."
-          value={form.operationId}
-          onValueChange={(val) => setForm({ ...form, operationId: val })}
-        >
-          {(operations || []).map((o) => (
-            <SelectItem key={o.ID} value={String(o.ID)}>{o.Name}</SelectItem>
-          ))}
-        </Select>
-      </div>
+          {/* Material + Operation */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium text-ls-text">Material & Operation</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="Material"
+                id="materialName"
+                placeholder="e.g., 3mm Birch Plywood"
+                value={form.materialName}
+                onChange={(e) => setForm({ ...form, materialName: e.target.value })}
+                required
+              />
 
-      {/* Settings values */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Input
-          label="Power (%)"
-          id="power"
-          type="number"
-          min="0"
-          max="100"
-          value={form.power}
-          onChange={(e) => setForm({ ...form, power: e.target.value })}
-          required
-        />
-        <Input
-          label="Speed"
-          id="speed"
-          type="number"
-          min="0"
-          value={form.speed}
-          onChange={(e) => setForm({ ...form, speed: e.target.value })}
-          required
-        />
-        <Input
-          label="Passes"
-          id="passes"
-          type="number"
-          min="1"
-          value={form.passes}
-          onChange={(e) => setForm({ ...form, passes: e.target.value })}
-        />
-        <Input
-          label="DPI/LPI"
-          id="dpi"
-          type="number"
-          min="0"
-          placeholder="Optional"
-          value={form.dpi}
-          onChange={(e) => setForm({ ...form, dpi: e.target.value })}
-        />
-      </div>
+              <Select
+                label="Mode"
+                placeholder="Select mode..."
+                value={form.mode}
+                onValueChange={(val) => setForm({ ...form, mode: val })}
+              >
+                <SelectItem value="Line">Line</SelectItem>
+                <SelectItem value="Fill">Fill</SelectItem>
+                <SelectItem value="Offset Fill">Offset Fill</SelectItem>
+                <SelectItem value="Image">Image</SelectItem>
+              </Select>
+            </div>
+          </div>
 
-      {/* Notes */}
-      <div className="space-y-1.5">
-        <label htmlFor="notes" className="block text-sm font-medium text-ls-text-muted">
-          Notes
-        </label>
-        <textarea
-          id="notes"
-          rows={3}
-          placeholder="Tips, observations, material brand, etc."
-          value={form.notes}
-          onChange={(e) => setForm({ ...form, notes: e.target.value })}
-          className="w-full px-4 py-3 bg-ls-surface border border-ls-border rounded-lg text-ls-text placeholder:text-ls-text-muted/50 focus:outline-none focus:ring-2 focus:ring-ls-accent focus:border-transparent transition-all resize-none"
-        />
-      </div>
+          {/* Settings Values */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium text-ls-text">Laser Parameters</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Input
+                label="Max Power (%)"
+                id="maxPower"
+                type="number"
+                step="0.01"
+                min="0"
+                max="100"
+                value={form.maxPower}
+                onChange={(e) => setForm({ ...form, maxPower: e.target.value })}
+                required
+              />
+              <Input
+                label="Speed (mm/s)"
+                id="speed"
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.speed}
+                onChange={(e) => setForm({ ...form, speed: e.target.value })}
+                required
+              />
+              <Input
+                label="Frequency (kHz)"
+                id="frequency"
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.frequency}
+                onChange={(e) => setForm({ ...form, frequency: e.target.value })}
+                required
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="Passes"
+                id="numPasses"
+                type="number"
+                min="1"
+                value={form.numPasses}
+                onChange={(e) => setForm({ ...form, numPasses: e.target.value })}
+              />
+              <Input
+                label="Scan Interval (mm)"
+                id="scanInterval"
+                type="number"
+                step="0.001"
+                min="0"
+                placeholder="Optional (for Scan)"
+                value={form.scanInterval}
+                onChange={(e) => setForm({ ...form, scanInterval: e.target.value })}
+              />
+            </div>
+          </div>
 
-      <Button type="submit" disabled={mutation.isPending} size="lg">
-        {mutation.isPending ? 'Submitting...' : 'Submit Setting'}
-      </Button>
-    </form>
+          {/* Notes */}
+          <div className="space-y-1.5">
+            <label htmlFor="notes" className="block text-sm font-medium text-ls-text-muted">
+              Notes
+            </label>
+            <textarea
+              id="notes"
+              rows={3}
+              placeholder="Tips, observations, material brand, etc."
+              value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              className="w-full px-4 py-3 bg-ls-surface border border-ls-border rounded-lg text-ls-text placeholder:text-ls-text-muted/50 focus:outline-none focus:ring-2 focus:ring-ls-accent focus:border-transparent transition-all resize-none"
+            />
+          </div>
+
+          <Button type="submit" disabled={mutation.isPending} size="lg">
+            {mutation.isPending ? 'Submitting...' : 'Submit Setting'}
+          </Button>
+        </form>
+      )}
+
+      {/* CLB Import Form */}
+      {mode === 'import' && (
+        <form onSubmit={handleImportSubmit} className="space-y-6">
+          <div className="bg-ls-surface/50 border border-ls-border rounded-lg p-4 text-sm text-ls-text-muted">
+            <p className="mb-2">Upload a LightBurn material library (.clb) file to bulk import your settings.</p>
+            <p>All settings from the file will be added to your account.</p>
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium text-ls-text">Laser Information</h3>
+            <p className="text-xs text-ls-text-muted">This information will be applied to all imported settings</p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Input
+                label="Laser Make/Model"
+                id="importLaserMakeModel"
+                placeholder="e.g., Gweike G2 Max 50"
+                value={importForm.laserMakeModel}
+                onChange={(e) => setImportForm({ ...importForm, laserMakeModel: e.target.value })}
+                required
+              />
+
+              <Select
+                label="Laser Type"
+                placeholder="Select type..."
+                value={importForm.laserType}
+                onValueChange={(val) => setImportForm({ ...importForm, laserType: val })}
+              >
+                <SelectItem value="CO2">CO2</SelectItem>
+                <SelectItem value="Fiber">Fiber</SelectItem>
+                <SelectItem value="Diode">Diode</SelectItem>
+                <SelectItem value="UV">UV</SelectItem>
+                <SelectItem value="Infrared">Infrared</SelectItem>
+              </Select>
+
+              <Input
+                label="Wattage (W)"
+                id="importWattage"
+                type="number"
+                min="1"
+                placeholder="e.g., 50"
+                value={importForm.wattage}
+                onChange={(e) => setImportForm({ ...importForm, wattage: e.target.value })}
+                required
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label htmlFor="clbFile" className="block text-sm font-medium text-ls-text-muted">
+              .CLB File
+            </label>
+            <input
+              type="file"
+              id="clbFile"
+              accept=".clb"
+              onChange={(e) => setImportForm({ ...importForm, file: e.target.files[0] })}
+              className="block w-full text-sm text-ls-text
+                file:mr-4 file:py-2 file:px-4
+                file:rounded-lg file:border-0
+                file:text-sm file:font-medium
+                file:bg-ls-accent file:text-white
+                file:cursor-pointer
+                hover:file:bg-ls-accent/90
+                cursor-pointer"
+              required
+            />
+            {importForm.file && (
+              <p className="text-xs text-ls-text-muted mt-2">
+                Selected: {importForm.file.name} ({(importForm.file.size / 1024).toFixed(1)} KB)
+              </p>
+            )}
+          </div>
+
+          <Button type="submit" disabled={importMutation.isPending} size="lg">
+            {importMutation.isPending ? 'Importing...' : 'Import Settings'}
+          </Button>
+        </form>
+      )}
+    </div>
   )
 }
 
