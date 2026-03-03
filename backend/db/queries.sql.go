@@ -10,6 +10,21 @@ import (
 	"database/sql"
 )
 
+const createMaterial = `-- name: CreateMaterial :execresult
+INSERT INTO materials (category_id, name, slug)
+VALUES (?, ?, ?)
+`
+
+type CreateMaterialParams struct {
+	CategoryID int32
+	Name       string
+	Slug       string
+}
+
+func (q *Queries) CreateMaterial(ctx context.Context, arg CreateMaterialParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, createMaterial, arg.CategoryID, arg.Name, arg.Slug)
+}
+
 const createSetting = `-- name: CreateSetting :execresult
 INSERT INTO settings (
     user_id, material_id, laser_type, wattage, operation_type,
@@ -306,6 +321,25 @@ func (q *Queries) GetMaterialByID(ctx context.Context, id int32) (GetMaterialByI
 	return i, err
 }
 
+const getMaterialByName = `-- name: GetMaterialByName :one
+SELECT id, category_id, name, slug
+FROM materials
+WHERE name = ?
+LIMIT 1
+`
+
+func (q *Queries) GetMaterialByName(ctx context.Context, name string) (Material, error) {
+	row := q.db.QueryRowContext(ctx, getMaterialByName, name)
+	var i Material
+	err := row.Scan(
+		&i.ID,
+		&i.CategoryID,
+		&i.Name,
+		&i.Slug,
+	)
+	return i, err
+}
+
 const getMaterialsByCategory = `-- name: GetMaterialsByCategory :many
 SELECT id, category_id, name, slug
 FROM materials
@@ -563,20 +597,31 @@ func (q *Queries) GetTopSettings(ctx context.Context) ([]GetTopSettingsRow, erro
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, username, email, password_hash, display_name, created_at
+SELECT id, username, email, password_hash, display_name, email_verified, created_at
 FROM users
 WHERE email = ?
 `
 
-func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
+type GetUserByEmailRow struct {
+	ID            int32
+	Username      string
+	Email         string
+	PasswordHash  string
+	DisplayName   sql.NullString
+	EmailVerified bool
+	CreatedAt     sql.NullTime
+}
+
+func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEmailRow, error) {
 	row := q.db.QueryRowContext(ctx, getUserByEmail, email)
-	var i User
+	var i GetUserByEmailRow
 	err := row.Scan(
 		&i.ID,
 		&i.Username,
 		&i.Email,
 		&i.PasswordHash,
 		&i.DisplayName,
+		&i.EmailVerified,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -584,44 +629,93 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 
 const getUserByID = `-- name: GetUserByID :one
 
-SELECT id, username, email, password_hash, display_name, created_at
+SELECT id, username, email, password_hash, display_name, email_verified, created_at
 FROM users
 WHERE id = ?
 `
 
+type GetUserByIDRow struct {
+	ID            int32
+	Username      string
+	Email         string
+	PasswordHash  string
+	DisplayName   sql.NullString
+	EmailVerified bool
+	CreatedAt     sql.NullTime
+}
+
 // =====================
 // USERS
 // =====================
-func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
+func (q *Queries) GetUserByID(ctx context.Context, id int32) (GetUserByIDRow, error) {
 	row := q.db.QueryRowContext(ctx, getUserByID, id)
-	var i User
+	var i GetUserByIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.Username,
 		&i.Email,
 		&i.PasswordHash,
 		&i.DisplayName,
+		&i.EmailVerified,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, email, password_hash, display_name, created_at
+SELECT id, username, email, password_hash, display_name, email_verified, created_at
 FROM users
 WHERE username = ?
 `
 
-func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
+type GetUserByUsernameRow struct {
+	ID            int32
+	Username      string
+	Email         string
+	PasswordHash  string
+	DisplayName   sql.NullString
+	EmailVerified bool
+	CreatedAt     sql.NullTime
+}
+
+func (q *Queries) GetUserByUsername(ctx context.Context, username string) (GetUserByUsernameRow, error) {
 	row := q.db.QueryRowContext(ctx, getUserByUsername, username)
-	var i User
+	var i GetUserByUsernameRow
 	err := row.Scan(
 		&i.ID,
 		&i.Username,
 		&i.Email,
 		&i.PasswordHash,
 		&i.DisplayName,
+		&i.EmailVerified,
 		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getUserByVerificationToken = `-- name: GetUserByVerificationToken :one
+SELECT id, username, email, email_verified, verification_expires
+FROM users
+WHERE verification_token = ?
+`
+
+type GetUserByVerificationTokenRow struct {
+	ID                  int32
+	Username            string
+	Email               string
+	EmailVerified       bool
+	VerificationExpires sql.NullTime
+}
+
+func (q *Queries) GetUserByVerificationToken(ctx context.Context, verificationToken sql.NullString) (GetUserByVerificationTokenRow, error) {
+	row := q.db.QueryRowContext(ctx, getUserByVerificationToken, verificationToken)
+	var i GetUserByVerificationTokenRow
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Email,
+		&i.EmailVerified,
+		&i.VerificationExpires,
 	)
 	return i, err
 }
@@ -892,6 +986,7 @@ WHERE (? IS NULL OR s.material_id = ?)
   AND (? IS NULL OR s.wattage = ?)
   AND (? IS NULL OR s.operation_type = ?)
   AND (? IS NULL OR s.user_id = ?)
+  AND (? IS NULL OR mat.name LIKE CONCAT('%', ?, '%'))
 GROUP BY s.id
 ORDER BY vote_score DESC, s.created_at DESC
 LIMIT 50
@@ -903,6 +998,7 @@ type SearchSettingsParams struct {
 	Wattage       sql.NullInt32
 	OperationType NullSettingsOperationType
 	UserID        sql.NullInt32
+	Keyword       interface{}
 }
 
 type SearchSettingsRow struct {
@@ -943,6 +1039,8 @@ func (q *Queries) SearchSettings(ctx context.Context, arg SearchSettingsParams) 
 		arg.OperationType,
 		arg.UserID,
 		arg.UserID,
+		arg.Keyword,
+		arg.Keyword,
 	)
 	if err != nil {
 		return nil, err
@@ -987,6 +1085,22 @@ func (q *Queries) SearchSettings(ctx context.Context, arg SearchSettingsParams) 
 		return nil, err
 	}
 	return items, nil
+}
+
+const setVerificationToken = `-- name: SetVerificationToken :exec
+UPDATE users SET verification_token = ?, verification_expires = ?
+WHERE id = ?
+`
+
+type SetVerificationTokenParams struct {
+	VerificationToken   sql.NullString
+	VerificationExpires sql.NullTime
+	ID                  int32
+}
+
+func (q *Queries) SetVerificationToken(ctx context.Context, arg SetVerificationTokenParams) error {
+	_, err := q.db.ExecContext(ctx, setVerificationToken, arg.VerificationToken, arg.VerificationExpires, arg.ID)
+	return err
 }
 
 const updateSetting = `-- name: UpdateSetting :exec
@@ -1089,5 +1203,15 @@ type UpsertVoteParams struct {
 
 func (q *Queries) UpsertVote(ctx context.Context, arg UpsertVoteParams) error {
 	_, err := q.db.ExecContext(ctx, upsertVote, arg.UserID, arg.SettingID, arg.Value)
+	return err
+}
+
+const verifyUserEmail = `-- name: VerifyUserEmail :exec
+UPDATE users SET email_verified = TRUE, verification_token = NULL, verification_expires = NULL
+WHERE id = ?
+`
+
+func (q *Queries) VerifyUserEmail(ctx context.Context, id int32) error {
+	_, err := q.db.ExecContext(ctx, verifyUserEmail, id)
 	return err
 }

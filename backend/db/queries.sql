@@ -3,23 +3,36 @@
 -- =====================
 
 -- name: GetUserByID :one
-SELECT id, username, email, password_hash, display_name, created_at
+SELECT id, username, email, password_hash, display_name, email_verified, created_at
 FROM users
 WHERE id = ?;
 
 -- name: GetUserByUsername :one
-SELECT id, username, email, password_hash, display_name, created_at
+SELECT id, username, email, password_hash, display_name, email_verified, created_at
 FROM users
 WHERE username = ?;
 
 -- name: GetUserByEmail :one
-SELECT id, username, email, password_hash, display_name, created_at
+SELECT id, username, email, password_hash, display_name, email_verified, created_at
 FROM users
 WHERE email = ?;
 
 -- name: CreateUser :execresult
 INSERT INTO users (username, email, password_hash, display_name)
 VALUES (?, ?, ?, ?);
+
+-- name: SetVerificationToken :exec
+UPDATE users SET verification_token = ?, verification_expires = ?
+WHERE id = ?;
+
+-- name: GetUserByVerificationToken :one
+SELECT id, username, email, email_verified, verification_expires
+FROM users
+WHERE verification_token = ?;
+
+-- name: VerifyUserEmail :exec
+UPDATE users SET email_verified = TRUE, verification_token = NULL, verification_expires = NULL
+WHERE id = ?;
 
 -- =====================
 -- MATERIAL CATEGORIES
@@ -82,6 +95,16 @@ FROM material_aliases
 WHERE material_id = ?
 ORDER BY alias;
 
+-- name: GetMaterialByName :one
+SELECT id, category_id, name, slug
+FROM materials
+WHERE name = ?
+LIMIT 1;
+
+-- name: CreateMaterial :execresult
+INSERT INTO materials (category_id, name, slug)
+VALUES (?, ?, ?);
+
 -- =====================
 -- SETTINGS
 -- =====================
@@ -132,6 +155,7 @@ WHERE (sqlc.narg(material_id) IS NULL OR s.material_id = sqlc.narg(material_id))
   AND (sqlc.narg(wattage) IS NULL OR s.wattage = sqlc.narg(wattage))
   AND (sqlc.narg(operation_type) IS NULL OR s.operation_type = sqlc.narg(operation_type))
   AND (sqlc.narg(user_id) IS NULL OR s.user_id = sqlc.narg(user_id))
+  AND (sqlc.narg(keyword) IS NULL OR mat.name LIKE CONCAT('%', sqlc.narg(keyword), '%'))
 GROUP BY s.id
 ORDER BY vote_score DESC, s.created_at DESC
 LIMIT 50;

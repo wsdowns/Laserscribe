@@ -157,12 +157,15 @@ type Setting struct {
 }
 
 type User struct {
-	ID           int32
-	Username     string
-	Email        string
-	PasswordHash string
-	DisplayName  sql.NullString
-	CreatedAt    sql.NullTime
+	ID                  int32
+	Username            string
+	Email               string
+	PasswordHash        string
+	DisplayName         sql.NullString
+	EmailVerified       bool
+	VerificationToken   sql.NullString
+	VerificationExpires sql.NullTime
+	CreatedAt           sql.NullTime
 }
 
 type Vote struct {
