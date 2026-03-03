@@ -1,0 +1,79 @@
+name: Deploy to Lightsail
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache-dependency-path: backend/go.sum
+
+      - name: Build backend
+        working-directory: ./backend
+        run: |
+          go mod download
+          CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o laserscribe-api main.go
+          chmod +x laserscribe-api
+
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+
+      - name: Add server to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.LIGHTSAIL_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to Lightsail
+        env:
+          HOST: ${{ secrets.LIGHTSAIL_HOST }}
+          USER: ${{ secrets.LIGHTSAIL_USER }}
+          DEPLOY_PATH: ${{ secrets.LIGHTSAIL_DEPLOY_PATH }}
+        run: |
+          # Create deployment directory if it doesn't exist
+          ssh $USER@$HOST "mkdir -p $DEPLOY_PATH"
+
+          # Copy binary to server
+          scp backend/laserscribe-api $USER@$HOST:$DEPLOY_PATH/
+
+          # Copy schema if needed
+          scp backend/schema.sql $USER@$HOST:$DEPLOY_PATH/
+
+          # Set permissions and restart service
+          ssh $USER@$HOST << 'EOF'
+            cd $DEPLOY_PATH
+            chmod +x laserscribe-api
+
+            # Stop existing service
+            sudo systemctl stop laserscribe || true
+
+            # Start the service
+            sudo systemctl start laserscribe
+
+            # Check status
+            sudo systemctl status laserscribe --no-pager
+          EOF
+
+      - name: Verify deployment
+        env:
+          HOST: ${{ secrets.LIGHTSAIL_HOST }}
+          USER: ${{ secrets.LIGHTSAIL_USER }}
+        run: |
+          ssh $USER@$HOST "curl -f http://localhost:8080/api/health || exit 1"
+          echo "Deployment successful!"

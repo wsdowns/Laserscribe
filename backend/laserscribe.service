@@ -1,0 +1,23 @@
+[Unit]
+Description=Laserscribe API Server
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/laserscribe
+ExecStart=/opt/laserscribe/laserscribe-api
+Restart=always
+RestartSec=5
+
+# Environment variables
+Environment="PORT=8080"
+Environment="DB_PATH=/opt/laserscribe/laserscribe.db"
+EnvironmentFile=/opt/laserscribe/.env
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
