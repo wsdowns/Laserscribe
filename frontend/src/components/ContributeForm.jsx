@@ -276,8 +276,8 @@ function ContributeForm({ user, initialMode = 'manual' }) {
           <div className="space-y-4">
             <h3 className="text-sm font-medium text-ls-text">Laser Parameters</h3>
 
-            {/* Row 1: Max Power */}
-            <div className="grid grid-cols-1 gap-4">
+            {/* Row 1: Max Power, Speed, Frequency */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Input
                 label="Max Power (%)"
                 id="maxPower"
@@ -287,6 +287,26 @@ function ContributeForm({ user, initialMode = 'manual' }) {
                 max="100"
                 value={form.maxPower}
                 onChange={(e) => setForm({ ...form, maxPower: e.target.value })}
+                required
+              />
+              <Input
+                label="Speed (mm/s)"
+                id="speed"
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.speed}
+                onChange={(e) => setForm({ ...form, speed: e.target.value })}
+                required
+              />
+              <Input
+                label="Frequency (kHz)"
+                id="frequency"
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.frequency}
+                onChange={(e) => setForm({ ...form, frequency: e.target.value })}
                 required
               />
             </div>
@@ -378,31 +398,7 @@ function ContributeForm({ user, initialMode = 'manual' }) {
               />
             </div>
 
-            {/* Row 4: Speed, Frequency */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input
-                label="Speed (mm/s)"
-                id="speed"
-                type="number"
-                step="0.01"
-                min="0"
-                value={form.speed}
-                onChange={(e) => setForm({ ...form, speed: e.target.value })}
-                required
-              />
-              <Input
-                label="Frequency (kHz)"
-                id="frequency"
-                type="number"
-                step="0.01"
-                min="0"
-                value={form.frequency}
-                onChange={(e) => setForm({ ...form, frequency: e.target.value })}
-                required
-              />
-            </div>
-
-            {/* Row 5: Passes, Scan Interval */}
+            {/* Row 4: Passes, Scan Interval */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
                 label="Passes"
