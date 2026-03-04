@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'backend/**'
+      - 'frontend/**'
       - '.github/workflows/deploy.yml'
   workflow_dispatch:
 
@@ -16,6 +17,19 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        working-directory: ./frontend
+        run: |
+          npm ci
+          npm run build
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -46,27 +60,23 @@ jobs:
           USER: ${{ secrets.LIGHTSAIL_USER }}
           DEPLOY_PATH: ${{ secrets.LIGHTSAIL_DEPLOY_PATH }}
         run: |
-          # Create deployment directory if it doesn't exist
+          # Deploy backend
           ssh $USER@$HOST "mkdir -p $DEPLOY_PATH"
-
-          # Copy binary to server
           scp backend/laserscribe-api $USER@$HOST:$DEPLOY_PATH/
-
-          # Copy schema if needed
           scp backend/schema.sql $USER@$HOST:$DEPLOY_PATH/
 
-          # Set permissions and restart service
+          # Deploy frontend
+          ssh $USER@$HOST "sudo mkdir -p /var/www/html.new"
+          scp -r frontend/dist/* $USER@$HOST:/tmp/frontend-dist/
+          ssh $USER@$HOST "sudo rm -rf /var/www/html.new/* && sudo mv /tmp/frontend-dist/* /var/www/html.new/"
+          ssh $USER@$HOST "sudo chown -R www-data:www-data /var/www/html.new && sudo chmod -R 755 /var/www/html.new"
+          ssh $USER@$HOST "sudo mv /var/www/html /var/www/html.old && sudo mv /var/www/html.new /var/www/html && sudo rm -rf /var/www/html.old"
+
+          # Restart backend service
           ssh $USER@$HOST << 'EOF'
             cd $DEPLOY_PATH
             chmod +x laserscribe-api
-
-            # Stop existing service
-            sudo systemctl stop laserscribe || true
-
-            # Start the service
-            sudo systemctl start laserscribe
-
-            # Check status
+            sudo systemctl restart laserscribe
             sudo systemctl status laserscribe --no-pager
           EOF
 
