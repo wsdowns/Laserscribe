@@ -13,14 +13,17 @@ function ContributeForm({ user, initialMode = 'manual' }) {
     wattage: '',
     mode: '',
     maxPower: '',
+    biDirectionalFill: false,
+    crossHatch: false,
+    lineInterval: '',
+    scanAngle: '',
+    angleIncrement: '',
+    autoRotate: false,
+    floodFill: false,
     speed: '',
     numPasses: '1',
     frequency: '',
     scanInterval: '',
-    biDirectionalFill: false,
-    crossHatch: false,
-    scanAngle: '',
-    angleIncrement: '',
     layerName: '',
     notes: '',
   })
@@ -59,10 +62,10 @@ function ContributeForm({ user, initialMode = 'manual' }) {
       queryClient.invalidateQueries({ queryKey: ['settings'] })
       setForm({
         materialName: '', laserType: '', wattage: '', mode: '',
-        maxPower: '', speed: '', numPasses: '1',
-        frequency: '', scanInterval: '', biDirectionalFill: false,
-        crossHatch: false, scanAngle: '', angleIncrement: '',
-        layerName: '', notes: '',
+        maxPower: '', biDirectionalFill: false, crossHatch: false,
+        lineInterval: '', scanAngle: '', angleIncrement: '',
+        autoRotate: false, floodFill: false, speed: '', numPasses: '1',
+        frequency: '', scanInterval: '', layerName: '', notes: '',
       })
     },
     onError: (err) => {
@@ -116,13 +119,14 @@ function ContributeForm({ user, initialMode = 'manual' }) {
     if (form.layerName) data.layerName = form.layerName
     if (form.notes) data.notes = form.notes
 
-    // Fill mode parameters
-    if (form.mode === 'Fill') {
-      data.biDirectionalFill = form.biDirectionalFill
-      data.crossHatch = form.crossHatch
-      if (form.scanAngle) data.scanAngle = parseFloat(form.scanAngle)
-      if (form.angleIncrement) data.angleIncrement = parseFloat(form.angleIncrement)
-    }
+    // Additional parameters
+    data.biDirectionalFill = form.biDirectionalFill
+    data.crossHatch = form.crossHatch
+    data.autoRotate = form.autoRotate
+    data.floodFill = form.floodFill
+    if (form.lineInterval) data.lineInterval = parseFloat(form.lineInterval)
+    if (form.scanAngle) data.scanAngle = parseFloat(form.scanAngle)
+    if (form.angleIncrement) data.angleIncrement = parseFloat(form.angleIncrement)
 
     mutation.mutate(data)
   }
@@ -271,7 +275,9 @@ function ContributeForm({ user, initialMode = 'manual' }) {
           {/* Settings Values */}
           <div className="space-y-4">
             <h3 className="text-sm font-medium text-ls-text">Laser Parameters</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+            {/* Row 1: Max Power */}
+            <div className="grid grid-cols-1 gap-4">
               <Input
                 label="Max Power (%)"
                 id="maxPower"
@@ -283,6 +289,97 @@ function ContributeForm({ user, initialMode = 'manual' }) {
                 onChange={(e) => setForm({ ...form, maxPower: e.target.value })}
                 required
               />
+            </div>
+
+            {/* Row 2: Checkboxes */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="biDirectionalFill"
+                  checked={form.biDirectionalFill}
+                  onChange={(e) => setForm({ ...form, biDirectionalFill: e.target.checked })}
+                  className="w-4 h-4 rounded border-ls-border bg-ls-surface text-ls-accent focus:ring-2 focus:ring-ls-accent"
+                />
+                <label htmlFor="biDirectionalFill" className="text-sm text-ls-text cursor-pointer">
+                  Bi-Directional Fill
+                </label>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="crossHatch"
+                  checked={form.crossHatch}
+                  onChange={(e) => setForm({ ...form, crossHatch: e.target.checked })}
+                  className="w-4 h-4 rounded border-ls-border bg-ls-surface text-ls-accent focus:ring-2 focus:ring-ls-accent"
+                />
+                <label htmlFor="crossHatch" className="text-sm text-ls-text cursor-pointer">
+                  Cross-Hatch
+                </label>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="autoRotate"
+                  checked={form.autoRotate}
+                  onChange={(e) => setForm({ ...form, autoRotate: e.target.checked })}
+                  className="w-4 h-4 rounded border-ls-border bg-ls-surface text-ls-accent focus:ring-2 focus:ring-ls-accent"
+                />
+                <label htmlFor="autoRotate" className="text-sm text-ls-text cursor-pointer">
+                  Auto Rotate
+                </label>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="floodFill"
+                  checked={form.floodFill}
+                  onChange={(e) => setForm({ ...form, floodFill: e.target.checked })}
+                  className="w-4 h-4 rounded border-ls-border bg-ls-surface text-ls-accent focus:ring-2 focus:ring-ls-accent"
+                />
+                <label htmlFor="floodFill" className="text-sm text-ls-text cursor-pointer">
+                  Flood Fill
+                </label>
+              </div>
+            </div>
+
+            {/* Row 3: Line Interval, Scan Angle, Angle Increment */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Input
+                label="Line Interval (mm)"
+                id="lineInterval"
+                type="number"
+                step="0.001"
+                min="0"
+                placeholder="e.g., 0.1"
+                value={form.lineInterval}
+                onChange={(e) => setForm({ ...form, lineInterval: e.target.value })}
+              />
+              <Input
+                label="Scan Angle (deg)"
+                id="scanAngle"
+                type="number"
+                step="1"
+                min="0"
+                max="360"
+                placeholder="e.g., 0"
+                value={form.scanAngle}
+                onChange={(e) => setForm({ ...form, scanAngle: e.target.value })}
+              />
+              <Input
+                label="Angle Increment (deg)"
+                id="angleIncrement"
+                type="number"
+                step="1"
+                min="0"
+                placeholder="e.g., 90"
+                value={form.angleIncrement}
+                onChange={(e) => setForm({ ...form, angleIncrement: e.target.value })}
+              />
+            </div>
+
+            {/* Row 4: Speed, Frequency */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
                 label="Speed (mm/s)"
                 id="speed"
@@ -304,6 +401,8 @@ function ContributeForm({ user, initialMode = 'manual' }) {
                 required
               />
             </div>
+
+            {/* Row 5: Passes, Scan Interval */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
                 label="Passes"
@@ -319,68 +418,12 @@ function ContributeForm({ user, initialMode = 'manual' }) {
                 type="number"
                 step="0.001"
                 min="0"
-                placeholder="Optional (for Scan)"
+                placeholder="Optional"
                 value={form.scanInterval}
                 onChange={(e) => setForm({ ...form, scanInterval: e.target.value })}
               />
             </div>
           </div>
-
-          {/* Fill Mode Parameters */}
-          {form.mode === 'Fill' && (
-            <div className="space-y-4">
-              <h3 className="text-sm font-medium text-ls-text">Fill Mode Settings</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    id="biDirectionalFill"
-                    checked={form.biDirectionalFill}
-                    onChange={(e) => setForm({ ...form, biDirectionalFill: e.target.checked })}
-                    className="w-4 h-4 rounded border-ls-border bg-ls-surface text-ls-accent focus:ring-2 focus:ring-ls-accent"
-                  />
-                  <label htmlFor="biDirectionalFill" className="text-sm text-ls-text cursor-pointer">
-                    Bi-Directional Fill
-                  </label>
-                </div>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    id="crossHatch"
-                    checked={form.crossHatch}
-                    onChange={(e) => setForm({ ...form, crossHatch: e.target.checked })}
-                    className="w-4 h-4 rounded border-ls-border bg-ls-surface text-ls-accent focus:ring-2 focus:ring-ls-accent"
-                  />
-                  <label htmlFor="crossHatch" className="text-sm text-ls-text cursor-pointer">
-                    Cross-Hatch
-                  </label>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input
-                  label="Scan Angle (degrees)"
-                  id="scanAngle"
-                  type="number"
-                  step="1"
-                  min="0"
-                  max="360"
-                  placeholder="e.g., 0"
-                  value={form.scanAngle}
-                  onChange={(e) => setForm({ ...form, scanAngle: e.target.value })}
-                />
-                <Input
-                  label="Angle Increment (degrees)"
-                  id="angleIncrement"
-                  type="number"
-                  step="1"
-                  min="0"
-                  placeholder="e.g., 90"
-                  value={form.angleIncrement}
-                  onChange={(e) => setForm({ ...form, angleIncrement: e.target.value })}
-                />
-              </div>
-            </div>
-          )}
 
           {/* Notes */}
           <div className="space-y-1.5">
