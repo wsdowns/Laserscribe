@@ -40,13 +40,10 @@ function HomePage() {
           </div>
 
           {/* Welcome Message */}
-          <p className="text-xl sm:text-2xl text-ls-text mb-4 leading-relaxed">
+          <p className="text-xl sm:text-2xl text-ls-text mb-8 leading-relaxed">
             Welcome to the <span className="text-ls-accent font-semibold">Laserscribed</span> community —
             your hub for precision laser engraving and cutting resources.
           </p>
-
-          {/* Divider */}
-          <div className="w-32 h-[5px] bg-gradient-to-r from-ls-accent to-ls-accent-dark rounded-full mx-auto mb-5" />
 
           {/* PowerScale Card */}
           <div className="border-4 border-ls-accent rounded-2xl p-8 bg-ls-surface/30 backdrop-blur-sm">
