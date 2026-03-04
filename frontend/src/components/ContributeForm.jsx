@@ -17,6 +17,10 @@ function ContributeForm({ user, initialMode = 'manual' }) {
     numPasses: '1',
     frequency: '',
     scanInterval: '',
+    biDirectionalFill: false,
+    crossHatch: false,
+    scanAngle: '',
+    angleIncrement: '',
     layerName: '',
     notes: '',
   })
@@ -56,7 +60,9 @@ function ContributeForm({ user, initialMode = 'manual' }) {
       setForm({
         materialName: '', laserType: '', wattage: '', mode: '',
         maxPower: '', speed: '', numPasses: '1',
-        frequency: '', scanInterval: '', layerName: '', notes: '',
+        frequency: '', scanInterval: '', biDirectionalFill: false,
+        crossHatch: false, scanAngle: '', angleIncrement: '',
+        layerName: '', notes: '',
       })
     },
     onError: (err) => {
@@ -109,6 +115,14 @@ function ContributeForm({ user, initialMode = 'manual' }) {
     if (form.scanInterval) data.scanInterval = form.scanInterval
     if (form.layerName) data.layerName = form.layerName
     if (form.notes) data.notes = form.notes
+
+    // Fill mode parameters
+    if (form.mode === 'Fill') {
+      data.biDirectionalFill = form.biDirectionalFill
+      data.crossHatch = form.crossHatch
+      if (form.scanAngle) data.scanAngle = parseFloat(form.scanAngle)
+      if (form.angleIncrement) data.angleIncrement = parseFloat(form.angleIncrement)
+    }
 
     mutation.mutate(data)
   }
@@ -311,6 +325,62 @@ function ContributeForm({ user, initialMode = 'manual' }) {
               />
             </div>
           </div>
+
+          {/* Fill Mode Parameters */}
+          {form.mode === 'Fill' && (
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium text-ls-text">Fill Mode Settings</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="biDirectionalFill"
+                    checked={form.biDirectionalFill}
+                    onChange={(e) => setForm({ ...form, biDirectionalFill: e.target.checked })}
+                    className="w-4 h-4 rounded border-ls-border bg-ls-surface text-ls-accent focus:ring-2 focus:ring-ls-accent"
+                  />
+                  <label htmlFor="biDirectionalFill" className="text-sm text-ls-text cursor-pointer">
+                    Bi-Directional Fill
+                  </label>
+                </div>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="crossHatch"
+                    checked={form.crossHatch}
+                    onChange={(e) => setForm({ ...form, crossHatch: e.target.checked })}
+                    className="w-4 h-4 rounded border-ls-border bg-ls-surface text-ls-accent focus:ring-2 focus:ring-ls-accent"
+                  />
+                  <label htmlFor="crossHatch" className="text-sm text-ls-text cursor-pointer">
+                    Cross-Hatch
+                  </label>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label="Scan Angle (degrees)"
+                  id="scanAngle"
+                  type="number"
+                  step="1"
+                  min="0"
+                  max="360"
+                  placeholder="e.g., 0"
+                  value={form.scanAngle}
+                  onChange={(e) => setForm({ ...form, scanAngle: e.target.value })}
+                />
+                <Input
+                  label="Angle Increment (degrees)"
+                  id="angleIncrement"
+                  type="number"
+                  step="1"
+                  min="0"
+                  placeholder="e.g., 90"
+                  value={form.angleIncrement}
+                  onChange={(e) => setForm({ ...form, angleIncrement: e.target.value })}
+                />
+              </div>
+            </div>
+          )}
 
           {/* Notes */}
           <div className="space-y-1.5">
