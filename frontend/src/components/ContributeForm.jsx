@@ -23,7 +23,6 @@ function ContributeForm({ user, initialMode = 'manual' }) {
     speed: '',
     numPasses: '1',
     frequency: '',
-    scanInterval: '',
     layerName: '',
     notes: '',
   })
@@ -65,7 +64,7 @@ function ContributeForm({ user, initialMode = 'manual' }) {
         maxPower: '', biDirectionalFill: false, crossHatch: false,
         lineInterval: '', scanAngle: '', angleIncrement: '',
         autoRotate: false, floodFill: false, speed: '', numPasses: '1',
-        frequency: '', scanInterval: '', layerName: '', notes: '',
+        frequency: '', layerName: '', notes: '',
       })
     },
     onError: (err) => {
@@ -115,7 +114,6 @@ function ContributeForm({ user, initialMode = 'manual' }) {
     }
 
     if (form.frequency) data.frequency = form.frequency
-    if (form.scanInterval) data.scanInterval = form.scanInterval
     if (form.layerName) data.layerName = form.layerName
     if (form.notes) data.notes = form.notes
 
@@ -398,8 +396,8 @@ function ContributeForm({ user, initialMode = 'manual' }) {
               />
             </div>
 
-            {/* Row 4: Passes, Scan Interval */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Row 4: Passes */}
+            <div className="grid grid-cols-1 gap-4">
               <Input
                 label="Passes"
                 id="numPasses"
@@ -407,16 +405,6 @@ function ContributeForm({ user, initialMode = 'manual' }) {
                 min="1"
                 value={form.numPasses}
                 onChange={(e) => setForm({ ...form, numPasses: e.target.value })}
-              />
-              <Input
-                label="Scan Interval (mm)"
-                id="scanInterval"
-                type="number"
-                step="0.001"
-                min="0"
-                placeholder="Optional"
-                value={form.scanInterval}
-                onChange={(e) => setForm({ ...form, scanInterval: e.target.value })}
               />
             </div>
           </div>
