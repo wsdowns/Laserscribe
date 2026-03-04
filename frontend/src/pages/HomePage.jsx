@@ -90,7 +90,7 @@ function HomePage() {
       <section className="px-6 py-10 border-t border-ls-border">
         <div className="max-w-5xl mx-auto">
           <h2 className="text-2xl sm:text-3xl font-bold text-center mb-6">
-            How{' '}
+            <span className="text-ls-accent">How</span>{' '}
             <span className="inline-block">
               <span className="text-white">P</span>
               <span className="relative inline-block">
@@ -100,7 +100,7 @@ function HomePage() {
               <span className="text-white">wer</span>
               <span className="text-ls-accent">Scale</span>
             </span>
-            {' '}Works
+            {' '}<span className="text-ls-accent">Works</span>
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
