@@ -48,40 +48,43 @@ function HomePage() {
           {/* Divider */}
           <div className="w-32 h-[5px] bg-gradient-to-r from-ls-accent to-ls-accent-dark rounded-full mx-auto mb-5" />
 
-          {/* CTA Text */}
-          <h2 className="text-2xl sm:text-3xl font-bold mb-4">Ready to stop guessing?</h2>
-          <p className="text-ls-text-muted mb-8">
-            Join the community and find your settings in seconds, not hours.
-          </p>
+          {/* PowerScale Card */}
+          <div className="border-4 border-ls-accent rounded-2xl p-8 bg-ls-surface/30 backdrop-blur-sm">
+            {/* CTA Text */}
+            <h2 className="text-2xl sm:text-3xl font-bold mb-4">Ready to stop guessing?</h2>
+            <p className="text-ls-text-muted mb-8">
+              Join the community and find your settings in seconds, not hours.
+            </p>
 
-          {/* PowerScale logo */}
-          <div className="mb-6">
-            <div className="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight leading-none inline-block">
-              <span className="text-white">P</span>
-              <span className="relative inline-block">
-                <span className="invisible">o</span>
-                <StarburstSvg />
-              </span>
-              <span className="text-white">wer</span>
-              <span className="text-ls-accent">Scale</span>
+            {/* PowerScale logo */}
+            <div className="mb-6">
+              <div className="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight leading-none inline-block">
+                <span className="text-white">P</span>
+                <span className="relative inline-block">
+                  <span className="invisible">o</span>
+                  <StarburstSvg />
+                </span>
+                <span className="text-white">wer</span>
+                <span className="text-ls-accent">Scale</span>
+              </div>
+              <div className="mt-1.5 text-sm sm:text-base font-semibold text-gray-500 uppercase" style={{ letterSpacing: '0.35em' }}>
+                Crowd-Sourced Laser Settings
+              </div>
             </div>
-            <div className="mt-1.5 text-sm sm:text-base font-semibold text-gray-500 uppercase" style={{ letterSpacing: '0.35em' }}>
-              Crowd-Sourced Laser Settings
+
+            <p className="text-lg text-ls-text-muted max-w-2xl mx-auto mb-8">
+              <strong className="text-ls-text">PowerScale</strong> is a crowd-sourced, vote-validated database
+              of laser engraving and cutting settings. Find the right power, speed, and passes for your machine
+              and material — backed by the community.
+            </p>
+
+            <div className="flex justify-center">
+              <Link to="/powerscale">
+                <Button size="lg">
+                  Try PowerScale Now
+                </Button>
+              </Link>
             </div>
-          </div>
-
-          <p className="text-lg text-ls-text-muted max-w-2xl mx-auto mb-8">
-            <strong className="text-ls-text">PowerScale</strong> is a crowd-sourced, vote-validated database
-            of laser engraving and cutting settings. Find the right power, speed, and passes for your machine
-            and material — backed by the community.
-          </p>
-
-          <div className="flex justify-center">
-            <Link to="/powerscale">
-              <Button size="lg">
-                Try PowerScale Now
-              </Button>
-            </Link>
           </div>
         </div>
       </section>
