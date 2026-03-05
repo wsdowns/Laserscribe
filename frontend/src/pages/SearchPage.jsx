@@ -302,8 +302,8 @@ function SearchPage({ user }) {
             <h2 className="text-2xl font-bold text-ls-text text-center mb-4">
               Search Results
             </h2>
-            {/* Column Headers */}
-            <div className="flex items-center gap-6 px-4 pb-2 text-sm font-semibold text-ls-accent border-b border-ls-accent/30">
+            {/* Column Headers - Hidden on mobile */}
+            <div className="hidden lg:flex items-center gap-6 px-4 pb-2 text-sm font-semibold text-ls-accent border-b border-ls-accent/30">
               <div className="w-5"></div> {/* Checkbox spacing */}
               <div className="flex-1 grid grid-cols-6 gap-4">
                 <span>Laser</span>
@@ -369,89 +369,177 @@ function SearchPage({ user }) {
                   }
 
                   return (
-                    <div key={setting.ID} className="bg-ls-surface border border-ls-accent rounded-lg p-4 flex items-center gap-6 hover:bg-ls-surface-hover transition-colors cursor-pointer" onClick={() => setViewingSetting(setting)}>
-                      {/* Checkbox */}
-                      <input
-                        type="checkbox"
-                        checked={selectedSettings.includes(setting.ID)}
-                        onChange={(e) => {
-                          e.stopPropagation()
-                          toggleSelectSetting(setting.ID)
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        className="w-5 h-5 rounded border-ls-border bg-ls-surface text-ls-accent focus:ring-2 focus:ring-ls-accent cursor-pointer"
-                      />
-
-                      {/* Grid layout for all fields */}
-                      <div className="flex-1 grid grid-cols-6 gap-4 items-center">
-                        {/* Laser */}
-                        <div className="text-ls-text font-semibold whitespace-nowrap">
-                          {setting.LaserType} {setting.Wattage}W
+                    <div key={setting.ID} className="bg-ls-surface border border-ls-accent rounded-lg p-4 hover:bg-ls-surface-hover transition-colors cursor-pointer" onClick={() => setViewingSetting(setting)}>
+                      {/* Mobile Layout */}
+                      <div className="lg:hidden space-y-3">
+                        {/* Header row with checkbox and laser info */}
+                        <div className="flex items-start gap-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedSettings.includes(setting.ID)}
+                            onChange={(e) => {
+                              e.stopPropagation()
+                              toggleSelectSetting(setting.ID)
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-5 h-5 mt-0.5 rounded border-ls-border bg-ls-surface text-ls-accent focus:ring-2 focus:ring-ls-accent cursor-pointer"
+                          />
+                          <div className="flex-1">
+                            <div className="text-ls-text font-bold text-lg mb-1">
+                              {setting.LaserType} {setting.Wattage}W
+                            </div>
+                            <div className="text-ls-accent font-medium text-base mb-2">
+                              {materialName}
+                            </div>
+                            <div className="inline-block px-3 py-1 bg-ls-accent/20 text-ls-accent text-sm font-semibold rounded">
+                              {modeDisplay}
+                            </div>
+                          </div>
                         </div>
 
-                        {/* Material */}
-                        <div className="text-ls-accent font-medium truncate">
-                          {materialName}
+                        {/* Settings grid */}
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <span className="text-ls-text-muted">Speed:</span>
+                            <span className="text-ls-text font-semibold ml-2">{parseFloat(setting.Speed).toFixed(0)} mm/s</span>
+                          </div>
+                          <div>
+                            <span className="text-ls-text-muted">Power:</span>
+                            <span className="text-ls-text font-semibold ml-2">{parseFloat(setting.MaxPower).toFixed(0)}%</span>
+                          </div>
+                          {frequency && (
+                            <div className="col-span-2">
+                              <span className="text-ls-text-muted">Frequency:</span>
+                              <span className="text-ls-text font-semibold ml-2">{(parseFloat(frequency) / 1000).toFixed(0)} kHz</span>
+                            </div>
+                          )}
                         </div>
 
-                        {/* Mode */}
-                        <div className="text-ls-text-muted font-bold text-sm whitespace-nowrap text-center">
-                          {modeDisplay}
-                        </div>
-
-                        {/* Speed */}
-                        <div className="text-ls-text font-semibold text-sm whitespace-nowrap">
-                          {parseFloat(setting.Speed).toFixed(0)} mm/s
-                        </div>
-
-                        {/* Power */}
-                        <div className="text-ls-text font-semibold text-sm whitespace-nowrap">
-                          {parseFloat(setting.MaxPower).toFixed(0)}%
-                        </div>
-
-                        {/* Frequency */}
-                        <div className="text-ls-text font-semibold text-sm whitespace-nowrap">
-                          {frequency ? `${(parseFloat(frequency) / 1000).toFixed(0)} kHz` : '-'}
+                        {/* Vote buttons */}
+                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-ls-border" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleVote(setting.ID, 1)
+                            }}
+                            className={`p-2 rounded transition-colors cursor-pointer ${
+                              userVote === 1
+                                ? 'bg-ls-green/20 hover:bg-ls-green/30'
+                                : 'hover:bg-ls-surface-hover'
+                            }`}
+                            title={userVote === 1 ? "Remove upvote" : "Upvote"}
+                          >
+                            <svg className={`w-6 h-6 ${userVote === 1 ? 'text-ls-green' : 'text-ls-text-muted'}`} fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M2 10.5a1.5 1.5 0 113 0v6a1.5 1.5 0 01-3 0v-6zM6 10.333v5.43a2 2 0 001.106 1.79l.05.025A4 4 0 008.943 18h5.416a2 2 0 001.962-1.608l1.2-6A2 2 0 0015.56 8H12V4a2 2 0 00-2-2 1 1 0 00-1 1v.667a4 4 0 01-.8 2.4L6.8 7.933a4 4 0 00-.8 2.4z" />
+                            </svg>
+                          </button>
+                          <span className="text-ls-text font-bold text-lg min-w-[2.5rem] text-center">
+                            {voteScore}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleVote(setting.ID, -1)
+                            }}
+                            className={`p-2 rounded transition-colors cursor-pointer ${
+                              userVote === -1
+                                ? 'bg-ls-red/20 hover:bg-ls-red/30'
+                                : 'hover:bg-ls-surface-hover'
+                            }`}
+                            title={userVote === -1 ? "Remove downvote" : "Downvote"}
+                          >
+                            <svg className={`w-6 h-6 ${userVote === -1 ? 'text-ls-red' : 'text-ls-text-muted'}`} fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M18 9.5a1.5 1.5 0 11-3 0v-6a1.5 1.5 0 013 0v6zM14 9.667v-5.43a2 2 0 00-1.105-1.79l-.05-.025A4 4 0 0011.055 2H5.64a2 2 0 00-1.962 1.608l-1.2 6A2 2 0 004.44 12H8v4a2 2 0 002 2 1 1 0 001-1v-.667a4 4 0 01.8-2.4l1.4-1.866a4 4 0 00.8-2.4z" />
+                            </svg>
+                          </button>
                         </div>
                       </div>
 
-                      {/* Vote buttons */}
-                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={(e) => {
+                      {/* Desktop Layout */}
+                      <div className="hidden lg:flex items-center gap-6">
+                        {/* Checkbox */}
+                        <input
+                          type="checkbox"
+                          checked={selectedSettings.includes(setting.ID)}
+                          onChange={(e) => {
                             e.stopPropagation()
-                            handleVote(setting.ID, 1)
+                            toggleSelectSetting(setting.ID)
                           }}
-                          className={`p-1 rounded transition-colors cursor-pointer ${
-                            userVote === 1
-                              ? 'bg-ls-green/20 hover:bg-ls-green/30'
-                              : 'hover:bg-ls-surface-hover'
-                          }`}
-                          title={userVote === 1 ? "Remove upvote" : "Upvote"}
-                        >
-                          <svg className={`w-5 h-5 ${userVote === 1 ? 'text-ls-green' : 'text-ls-text-muted'}`} fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M2 10.5a1.5 1.5 0 113 0v6a1.5 1.5 0 01-3 0v-6zM6 10.333v5.43a2 2 0 001.106 1.79l.05.025A4 4 0 008.943 18h5.416a2 2 0 001.962-1.608l1.2-6A2 2 0 0015.56 8H12V4a2 2 0 00-2-2 1 1 0 00-1 1v.667a4 4 0 01-.8 2.4L6.8 7.933a4 4 0 00-.8 2.4z" />
-                          </svg>
-                        </button>
-                        <span className="text-ls-text font-semibold min-w-[2rem] text-center">
-                          {voteScore}
-                        </span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleVote(setting.ID, -1)
-                          }}
-                          className={`p-1 rounded transition-colors cursor-pointer ${
-                            userVote === -1
-                              ? 'bg-ls-red/20 hover:bg-ls-red/30'
-                              : 'hover:bg-ls-surface-hover'
-                          }`}
-                          title={userVote === -1 ? "Remove downvote" : "Downvote"}
-                        >
-                          <svg className={`w-5 h-5 ${userVote === -1 ? 'text-ls-red' : 'text-ls-text-muted'}`} fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M18 9.5a1.5 1.5 0 11-3 0v-6a1.5 1.5 0 013 0v6zM14 9.667v-5.43a2 2 0 00-1.105-1.79l-.05-.025A4 4 0 0011.055 2H5.64a2 2 0 00-1.962 1.608l-1.2 6A2 2 0 004.44 12H8v4a2 2 0 002 2 1 1 0 001-1v-.667a4 4 0 01.8-2.4l1.4-1.866a4 4 0 00.8-2.4z" />
-                          </svg>
-                        </button>
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-5 h-5 rounded border-ls-border bg-ls-surface text-ls-accent focus:ring-2 focus:ring-ls-accent cursor-pointer"
+                        />
+
+                        {/* Grid layout for all fields */}
+                        <div className="flex-1 grid grid-cols-6 gap-4 items-center">
+                          {/* Laser */}
+                          <div className="text-ls-text font-semibold whitespace-nowrap">
+                            {setting.LaserType} {setting.Wattage}W
+                          </div>
+
+                          {/* Material */}
+                          <div className="text-ls-accent font-medium truncate">
+                            {materialName}
+                          </div>
+
+                          {/* Mode */}
+                          <div className="text-ls-text-muted font-bold text-sm whitespace-nowrap text-center">
+                            {modeDisplay}
+                          </div>
+
+                          {/* Speed */}
+                          <div className="text-ls-text font-semibold text-sm whitespace-nowrap">
+                            {parseFloat(setting.Speed).toFixed(0)} mm/s
+                          </div>
+
+                          {/* Power */}
+                          <div className="text-ls-text font-semibold text-sm whitespace-nowrap">
+                            {parseFloat(setting.MaxPower).toFixed(0)}%
+                          </div>
+
+                          {/* Frequency */}
+                          <div className="text-ls-text font-semibold text-sm whitespace-nowrap">
+                            {frequency ? `${(parseFloat(frequency) / 1000).toFixed(0)} kHz` : '-'}
+                          </div>
+                        </div>
+
+                        {/* Vote buttons */}
+                        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleVote(setting.ID, 1)
+                            }}
+                            className={`p-1 rounded transition-colors cursor-pointer ${
+                              userVote === 1
+                                ? 'bg-ls-green/20 hover:bg-ls-green/30'
+                                : 'hover:bg-ls-surface-hover'
+                            }`}
+                            title={userVote === 1 ? "Remove upvote" : "Upvote"}
+                          >
+                            <svg className={`w-5 h-5 ${userVote === 1 ? 'text-ls-green' : 'text-ls-text-muted'}`} fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M2 10.5a1.5 1.5 0 113 0v6a1.5 1.5 0 01-3 0v-6zM6 10.333v5.43a2 2 0 001.106 1.79l.05.025A4 4 0 008.943 18h5.416a2 2 0 001.962-1.608l1.2-6A2 2 0 0015.56 8H12V4a2 2 0 00-2-2 1 1 0 00-1 1v.667a4 4 0 01-.8 2.4L6.8 7.933a4 4 0 00-.8 2.4z" />
+                            </svg>
+                          </button>
+                          <span className="text-ls-text font-semibold min-w-[2rem] text-center">
+                            {voteScore}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleVote(setting.ID, -1)
+                            }}
+                            className={`p-1 rounded transition-colors cursor-pointer ${
+                              userVote === -1
+                                ? 'bg-ls-red/20 hover:bg-ls-red/30'
+                                : 'hover:bg-ls-surface-hover'
+                            }`}
+                            title={userVote === -1 ? "Remove downvote" : "Downvote"}
+                          >
+                            <svg className={`w-5 h-5 ${userVote === -1 ? 'text-ls-red' : 'text-ls-text-muted'}`} fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M18 9.5a1.5 1.5 0 11-3 0v-6a1.5 1.5 0 013 0v6zM14 9.667v-5.43a2 2 0 00-1.105-1.79l-.05-.025A4 4 0 0011.055 2H5.64a2 2 0 00-1.962 1.608l-1.2 6A2 2 0 004.44 12H8v4a2 2 0 002 2 1 1 0 001-1v-.667a4 4 0 01.8-2.4l1.4-1.866a4 4 0 00.8-2.4z" />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )
