@@ -169,6 +169,7 @@ type User struct {
 	PasswordHash        string
 	DisplayName         sql.NullString
 	EmailVerified       bool
+	IsAdmin             bool
 	VerificationToken   sql.NullString
 	VerificationExpires sql.NullTime
 	CreatedAt           sql.NullTime

@@ -105,6 +105,13 @@ func main() {
 	// User profile
 	r.GET("/api/profile/settings", authMiddleware(), getUserSettingsHandler)
 
+	// Admin routes
+	r.GET("/api/admin/stats", authMiddleware(), adminMiddleware(), adminStatsHandler)
+	r.GET("/api/admin/users", authMiddleware(), adminMiddleware(), adminUsersHandler)
+	r.GET("/api/admin/users/:id", authMiddleware(), adminMiddleware(), adminUserDetailHandler)
+	r.POST("/api/admin/users/:id/set-admin", authMiddleware(), adminMiddleware(), setUserAdminHandler)
+	r.GET("/api/admin/settings", authMiddleware(), adminMiddleware(), adminSettingsHandler)
+
 	log.Println("Laserscribe API running on :8080")
 	r.Run(":8080")
 }
@@ -194,6 +201,27 @@ func emailVerifiedMiddleware() gin.HandlerFunc {
 		user, err := queries.GetUserByID(c.Request.Context(), userID)
 		if err != nil || !user.EmailVerified {
 			c.JSON(http.StatusForbidden, gin.H{"error": "email not verified", "message": "Please verify your email before contributing settings."})
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
+
+func adminMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userIDVal, exists := c.Get("user_id")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			c.Abort()
+			return
+		}
+
+		userID := userIDVal.(int32)
+		user, err := queries.GetUserByID(c.Request.Context(), userID)
+		if err != nil || !user.IsAdmin {
+			c.JSON(http.StatusForbidden, gin.H{"error": "admin access required"})
 			c.Abort()
 			return
 		}
@@ -332,6 +360,7 @@ func meHandler(c *gin.Context) {
 		"lastName":    user.LastName,
 		"email":       user.Email,
 		"displayName": displayName,
+		"isAdmin":     user.IsAdmin,
 	})
 }
 
@@ -1685,4 +1714,261 @@ func nullInt32(v *int32) sql.NullInt32 {
 		return sql.NullInt32{}
 	}
 	return sql.NullInt32{Int32: *v, Valid: true}
+}
+
+// =====================
+// ADMIN HANDLERS
+// =====================
+
+func adminStatsHandler(c *gin.Context) {
+	// Get overall stats
+	stats, err := queries.GetAdminStats(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Get top materials
+	topMaterials, err := queries.GetTopMaterialsBySettings(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Get settings by laser type
+	laserTypeBreakdown, err := queries.GetSettingsByLaserType(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"totalUsers":         stats.TotalUsers,
+		"verifiedUsers":      stats.VerifiedUsers,
+		"usersThisWeek":      stats.UsersThisWeek,
+		"totalSettings":      stats.TotalSettings,
+		"settingsThisWeek":   stats.SettingsThisWeek,
+		"totalVotes":         stats.TotalVotes,
+		"votesThisWeek":      stats.VotesThisWeek,
+		"topMaterials":       topMaterials,
+		"laserTypeBreakdown": laserTypeBreakdown,
+	})
+}
+
+func adminUsersHandler(c *gin.Context) {
+	// Parse pagination params
+	limit := 50
+	offset := 0
+	if l := c.Query("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 && parsed <= 100 {
+			limit = parsed
+		}
+	}
+	if o := c.Query("offset"); o != "" {
+		if parsed, err := strconv.Atoi(o); err == nil && parsed >= 0 {
+			offset = parsed
+		}
+	}
+
+	// Parse search param
+	search := c.Query("search")
+	var searchParam sql.NullString
+	if search != "" {
+		searchParam = sql.NullString{String: search, Valid: true}
+	}
+
+	// Get users
+	users, err := queries.GetAllUsersAdmin(c.Request.Context(), db.GetAllUsersAdminParams{
+		Search: searchParam,
+		Limit:  int32(limit),
+		Offset: int32(offset),
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Get total count
+	count, err := queries.GetUserCountAdmin(c.Request.Context(), db.GetUserCountAdminParams{
+		Search: searchParam,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Transform users to flatten sql.Null types
+	usersResponse := make([]map[string]interface{}, len(users))
+	for i, user := range users {
+		displayName := ""
+		if user.DisplayName.Valid {
+			displayName = user.DisplayName.String
+		}
+		createdAt := ""
+		if user.CreatedAt.Valid {
+			createdAt = user.CreatedAt.Time.Format(time.RFC3339)
+		}
+		usersResponse[i] = map[string]interface{}{
+			"id":            user.ID,
+			"firstName":     user.FirstName,
+			"lastName":      user.LastName,
+			"email":         user.Email,
+			"displayName":   displayName,
+			"emailVerified": user.EmailVerified,
+			"isAdmin":       user.IsAdmin,
+			"createdAt":     createdAt,
+			"settingCount":  user.SettingCount,
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"users":  usersResponse,
+		"total":  count,
+		"limit":  limit,
+		"offset": offset,
+	})
+}
+
+func adminUserDetailHandler(c *gin.Context) {
+	userID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+
+	user, err := queries.GetUserByIDAdmin(c.Request.Context(), int32(userID))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
+
+	// Get user's settings
+	settings, err := queries.GetUserSettings(c.Request.Context(), int32(userID))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"user":     user,
+		"settings": settings,
+	})
+}
+
+func adminSettingsHandler(c *gin.Context) {
+	// Parse pagination params
+	limit := 50
+	offset := 0
+	if l := c.Query("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 && parsed <= 100 {
+			limit = parsed
+		}
+	}
+	if o := c.Query("offset"); o != "" {
+		if parsed, err := strconv.Atoi(o); err == nil && parsed >= 0 {
+			offset = parsed
+		}
+	}
+
+	// Parse filter params
+	var materialID sql.NullInt32
+	if m := c.Query("material_id"); m != "" {
+		if parsed, err := strconv.Atoi(m); err == nil {
+			materialID = sql.NullInt32{Int32: int32(parsed), Valid: true}
+		}
+	}
+
+	var laserType db.NullSettingsLaserType
+	if lt := c.Query("laser_type"); lt != "" {
+		laserType = db.NullSettingsLaserType{
+			SettingsLaserType: db.SettingsLaserType(lt),
+			Valid:             true,
+		}
+	}
+
+	// Get settings
+	settings, err := queries.GetAllSettingsAdmin(c.Request.Context(), db.GetAllSettingsAdminParams{
+		MaterialID: materialID,
+		LaserType:  laserType,
+		Limit:      int32(limit),
+		Offset:     int32(offset),
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Get total count
+	count, err := queries.GetSettingsCountAdmin(c.Request.Context(), db.GetSettingsCountAdminParams{
+		MaterialID: materialID,
+		LaserType:  laserType,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Transform settings to flatten sql.Null types
+	settingsResponse := make([]map[string]interface{}, len(settings))
+	for i, setting := range settings {
+		userDisplayName := ""
+		if setting.UserDisplayName.Valid {
+			userDisplayName = setting.UserDisplayName.String
+		}
+		createdAt := ""
+		if setting.CreatedAt.Valid {
+			createdAt = setting.CreatedAt.Time.Format(time.RFC3339)
+		}
+		settingsResponse[i] = map[string]interface{}{
+			"id":              setting.ID,
+			"userId":          setting.UserID,
+			"materialId":      setting.MaterialID,
+			"laserType":       string(setting.LaserType),
+			"wattage":         setting.Wattage,
+			"operationType":   string(setting.OperationType),
+			"maxPower":        setting.MaxPower,
+			"minPower":        setting.MinPower,
+			"speed":           setting.Speed,
+			"createdAt":       createdAt,
+			"userEmail":       setting.UserEmail,
+			"userDisplayName": userDisplayName,
+			"materialName":    setting.MaterialName,
+			"voteScore":       setting.VoteScore,
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"settings": settingsResponse,
+		"total":    count,
+		"limit":    limit,
+		"offset":   offset,
+	})
+}
+
+type SetAdminRequest struct {
+	IsAdmin bool `json:"isAdmin" binding:"required"`
+}
+
+func setUserAdminHandler(c *gin.Context) {
+	userID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+
+	var req SetAdminRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Update the user's admin status
+	_, err = dbConn.ExecContext(c.Request.Context(),
+		"UPDATE users SET is_admin = ? WHERE id = ?", req.IsAdmin, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update admin status"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "admin status updated"})
 }

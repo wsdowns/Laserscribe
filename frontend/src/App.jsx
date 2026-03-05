@@ -12,6 +12,9 @@ import ProfilePage from './pages/ProfilePage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import VerifiedPage from './pages/VerifiedPage'
+import AdminDashboard from './pages/AdminDashboard'
+import AdminUsersPage from './pages/AdminUsersPage'
+import AdminSettingsPage from './pages/AdminSettingsPage'
 
 const queryClient = new QueryClient()
 
@@ -65,6 +68,9 @@ function App() {
               <Route path="/login" element={user ? <Navigate to="/search" /> : <LoginPage onLogin={login} />} />
               <Route path="/register" element={user ? <Navigate to="/" /> : <RegisterPage />} />
               <Route path="/verified" element={<VerifiedPage />} />
+              <Route path="/admin" element={user?.isAdmin ? <AdminDashboard user={user} /> : <Navigate to="/" />} />
+              <Route path="/admin/users" element={user?.isAdmin ? <AdminUsersPage user={user} /> : <Navigate to="/" />} />
+              <Route path="/admin/settings" element={user?.isAdmin ? <AdminSettingsPage user={user} /> : <Navigate to="/" />} />
             </Routes>
           </div>
         </div>

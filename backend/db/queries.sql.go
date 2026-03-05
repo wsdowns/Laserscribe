@@ -194,6 +194,46 @@ func (q *Queries) DeleteVote(ctx context.Context, arg DeleteVoteParams) error {
 	return err
 }
 
+const getAdminStats = `-- name: GetAdminStats :one
+
+SELECT
+    (SELECT COUNT(*) FROM users) as total_users,
+    (SELECT COUNT(*) FROM users WHERE email_verified = TRUE) as verified_users,
+    (SELECT COUNT(*) FROM users WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)) as users_this_week,
+    (SELECT COUNT(*) FROM settings) as total_settings,
+    (SELECT COUNT(*) FROM settings WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)) as settings_this_week,
+    (SELECT COUNT(*) FROM votes) as total_votes,
+    (SELECT COUNT(*) FROM votes WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)) as votes_this_week
+`
+
+type GetAdminStatsRow struct {
+	TotalUsers       int64
+	VerifiedUsers    int64
+	UsersThisWeek    int64
+	TotalSettings    int64
+	SettingsThisWeek int64
+	TotalVotes       int64
+	VotesThisWeek    int64
+}
+
+// =====================
+// ADMIN QUERIES
+// =====================
+func (q *Queries) GetAdminStats(ctx context.Context) (GetAdminStatsRow, error) {
+	row := q.db.QueryRowContext(ctx, getAdminStats)
+	var i GetAdminStatsRow
+	err := row.Scan(
+		&i.TotalUsers,
+		&i.VerifiedUsers,
+		&i.UsersThisWeek,
+		&i.TotalSettings,
+		&i.SettingsThisWeek,
+		&i.TotalVotes,
+		&i.VotesThisWeek,
+	)
+	return i, err
+}
+
 const getAliasesByMaterial = `-- name: GetAliasesByMaterial :many
 SELECT id, material_id, alias
 FROM material_aliases
@@ -292,6 +332,159 @@ func (q *Queries) GetAllMaterials(ctx context.Context) ([]GetAllMaterialsRow, er
 			&i.Name,
 			&i.Slug,
 			&i.CategoryName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getAllSettingsAdmin = `-- name: GetAllSettingsAdmin :many
+SELECT s.id, s.user_id, s.material_id, s.laser_type, s.wattage, s.operation_type,
+       s.max_power, s.min_power, s.speed, s.created_at,
+       u.email as user_email, u.display_name as user_display_name,
+       m.name as material_name,
+       CAST(COALESCE(SUM(v.value), 0) AS SIGNED) as vote_score
+FROM settings s
+JOIN users u ON s.user_id = u.id
+JOIN materials m ON s.material_id = m.id
+LEFT JOIN votes v ON v.setting_id = s.id
+WHERE (? IS NULL OR s.material_id = ?)
+  AND (? IS NULL OR s.laser_type = ?)
+GROUP BY s.id
+ORDER BY s.created_at DESC
+LIMIT ? OFFSET ?
+`
+
+type GetAllSettingsAdminParams struct {
+	MaterialID sql.NullInt32
+	LaserType  NullSettingsLaserType
+	Limit      int32
+	Offset     int32
+}
+
+type GetAllSettingsAdminRow struct {
+	ID              int32
+	UserID          int32
+	MaterialID      int32
+	LaserType       SettingsLaserType
+	Wattage         int32
+	OperationType   SettingsOperationType
+	MaxPower        string
+	MinPower        string
+	Speed           string
+	CreatedAt       sql.NullTime
+	UserEmail       string
+	UserDisplayName sql.NullString
+	MaterialName    string
+	VoteScore       int64
+}
+
+func (q *Queries) GetAllSettingsAdmin(ctx context.Context, arg GetAllSettingsAdminParams) ([]GetAllSettingsAdminRow, error) {
+	rows, err := q.db.QueryContext(ctx, getAllSettingsAdmin,
+		arg.MaterialID,
+		arg.MaterialID,
+		arg.LaserType,
+		arg.LaserType,
+		arg.Limit,
+		arg.Offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetAllSettingsAdminRow
+	for rows.Next() {
+		var i GetAllSettingsAdminRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.MaterialID,
+			&i.LaserType,
+			&i.Wattage,
+			&i.OperationType,
+			&i.MaxPower,
+			&i.MinPower,
+			&i.Speed,
+			&i.CreatedAt,
+			&i.UserEmail,
+			&i.UserDisplayName,
+			&i.MaterialName,
+			&i.VoteScore,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getAllUsersAdmin = `-- name: GetAllUsersAdmin :many
+SELECT u.id, u.first_name, u.last_name, u.email, u.display_name, u.email_verified, u.is_admin, u.created_at,
+       COUNT(s.id) as setting_count
+FROM users u
+LEFT JOIN settings s ON s.user_id = u.id
+WHERE (? IS NULL OR u.email LIKE CONCAT('%', ?, '%'))
+GROUP BY u.id
+ORDER BY u.created_at DESC
+LIMIT ? OFFSET ?
+`
+
+type GetAllUsersAdminParams struct {
+	Search interface{}
+	Limit  int32
+	Offset int32
+}
+
+type GetAllUsersAdminRow struct {
+	ID            int32
+	FirstName     string
+	LastName      string
+	Email         string
+	DisplayName   sql.NullString
+	EmailVerified bool
+	IsAdmin       bool
+	CreatedAt     sql.NullTime
+	SettingCount  int64
+}
+
+func (q *Queries) GetAllUsersAdmin(ctx context.Context, arg GetAllUsersAdminParams) ([]GetAllUsersAdminRow, error) {
+	rows, err := q.db.QueryContext(ctx, getAllUsersAdmin,
+		arg.Search,
+		arg.Search,
+		arg.Limit,
+		arg.Offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetAllUsersAdminRow
+	for rows.Next() {
+		var i GetAllUsersAdminRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.FirstName,
+			&i.LastName,
+			&i.Email,
+			&i.DisplayName,
+			&i.EmailVerified,
+			&i.IsAdmin,
+			&i.CreatedAt,
+			&i.SettingCount,
 		); err != nil {
 			return nil, err
 		}
@@ -518,6 +711,102 @@ func (q *Queries) GetSettingByID(ctx context.Context, id int32) (GetSettingByIDR
 	return i, err
 }
 
+const getSettingsByLaserType = `-- name: GetSettingsByLaserType :many
+SELECT laser_type, COUNT(*) as count
+FROM settings
+GROUP BY laser_type
+ORDER BY count DESC
+`
+
+type GetSettingsByLaserTypeRow struct {
+	LaserType SettingsLaserType
+	Count     int64
+}
+
+func (q *Queries) GetSettingsByLaserType(ctx context.Context) ([]GetSettingsByLaserTypeRow, error) {
+	rows, err := q.db.QueryContext(ctx, getSettingsByLaserType)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetSettingsByLaserTypeRow
+	for rows.Next() {
+		var i GetSettingsByLaserTypeRow
+		if err := rows.Scan(&i.LaserType, &i.Count); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getSettingsCountAdmin = `-- name: GetSettingsCountAdmin :one
+SELECT COUNT(*) as total
+FROM settings s
+WHERE (? IS NULL OR s.material_id = ?)
+  AND (? IS NULL OR s.laser_type = ?)
+`
+
+type GetSettingsCountAdminParams struct {
+	MaterialID sql.NullInt32
+	LaserType  NullSettingsLaserType
+}
+
+func (q *Queries) GetSettingsCountAdmin(ctx context.Context, arg GetSettingsCountAdminParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getSettingsCountAdmin,
+		arg.MaterialID,
+		arg.MaterialID,
+		arg.LaserType,
+		arg.LaserType,
+	)
+	var total int64
+	err := row.Scan(&total)
+	return total, err
+}
+
+const getTopMaterialsBySettings = `-- name: GetTopMaterialsBySettings :many
+SELECT m.name as material_name, COUNT(s.id) as setting_count
+FROM materials m
+JOIN settings s ON s.material_id = m.id
+GROUP BY m.id, m.name
+ORDER BY setting_count DESC
+LIMIT 5
+`
+
+type GetTopMaterialsBySettingsRow struct {
+	MaterialName string
+	SettingCount int64
+}
+
+func (q *Queries) GetTopMaterialsBySettings(ctx context.Context) ([]GetTopMaterialsBySettingsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getTopMaterialsBySettings)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetTopMaterialsBySettingsRow
+	for rows.Next() {
+		var i GetTopMaterialsBySettingsRow
+		if err := rows.Scan(&i.MaterialName, &i.SettingCount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getTopSettings = `-- name: GetTopSettings :many
 SELECT s.id, s.user_id, s.material_id,
        s.laser_type, s.wattage, s.operation_type,
@@ -627,7 +916,7 @@ func (q *Queries) GetTopSettings(ctx context.Context) ([]GetTopSettingsRow, erro
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, first_name, last_name, email, password_hash, display_name, email_verified, created_at
+SELECT id, first_name, last_name, email, password_hash, display_name, email_verified, is_admin, created_at
 FROM users
 WHERE email = ?
 `
@@ -640,6 +929,7 @@ type GetUserByEmailRow struct {
 	PasswordHash  string
 	DisplayName   sql.NullString
 	EmailVerified bool
+	IsAdmin       bool
 	CreatedAt     sql.NullTime
 }
 
@@ -654,6 +944,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEm
 		&i.PasswordHash,
 		&i.DisplayName,
 		&i.EmailVerified,
+		&i.IsAdmin,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -661,7 +952,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEm
 
 const getUserByID = `-- name: GetUserByID :one
 
-SELECT id, first_name, last_name, email, password_hash, display_name, email_verified, created_at
+SELECT id, first_name, last_name, email, password_hash, display_name, email_verified, is_admin, created_at
 FROM users
 WHERE id = ?
 `
@@ -674,6 +965,7 @@ type GetUserByIDRow struct {
 	PasswordHash  string
 	DisplayName   sql.NullString
 	EmailVerified bool
+	IsAdmin       bool
 	CreatedAt     sql.NullTime
 }
 
@@ -691,7 +983,46 @@ func (q *Queries) GetUserByID(ctx context.Context, id int32) (GetUserByIDRow, er
 		&i.PasswordHash,
 		&i.DisplayName,
 		&i.EmailVerified,
+		&i.IsAdmin,
 		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getUserByIDAdmin = `-- name: GetUserByIDAdmin :one
+SELECT u.id, u.first_name, u.last_name, u.email, u.display_name, u.email_verified, u.is_admin, u.created_at,
+       COUNT(s.id) as setting_count
+FROM users u
+LEFT JOIN settings s ON s.user_id = u.id
+WHERE u.id = ?
+GROUP BY u.id
+`
+
+type GetUserByIDAdminRow struct {
+	ID            int32
+	FirstName     string
+	LastName      string
+	Email         string
+	DisplayName   sql.NullString
+	EmailVerified bool
+	IsAdmin       bool
+	CreatedAt     sql.NullTime
+	SettingCount  int64
+}
+
+func (q *Queries) GetUserByIDAdmin(ctx context.Context, id int32) (GetUserByIDAdminRow, error) {
+	row := q.db.QueryRowContext(ctx, getUserByIDAdmin, id)
+	var i GetUserByIDAdminRow
+	err := row.Scan(
+		&i.ID,
+		&i.FirstName,
+		&i.LastName,
+		&i.Email,
+		&i.DisplayName,
+		&i.EmailVerified,
+		&i.IsAdmin,
+		&i.CreatedAt,
+		&i.SettingCount,
 	)
 	return i, err
 }
@@ -723,6 +1054,23 @@ func (q *Queries) GetUserByVerificationToken(ctx context.Context, verificationTo
 		&i.VerificationExpires,
 	)
 	return i, err
+}
+
+const getUserCountAdmin = `-- name: GetUserCountAdmin :one
+SELECT COUNT(*) as total
+FROM users
+WHERE (? IS NULL OR email LIKE CONCAT('%', ?, '%'))
+`
+
+type GetUserCountAdminParams struct {
+	Search interface{}
+}
+
+func (q *Queries) GetUserCountAdmin(ctx context.Context, arg GetUserCountAdminParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getUserCountAdmin, arg.Search, arg.Search)
+	var total int64
+	err := row.Scan(&total)
+	return total, err
 }
 
 const getUserSettings = `-- name: GetUserSettings :many

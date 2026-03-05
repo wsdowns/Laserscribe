@@ -3,12 +3,12 @@
 -- =====================
 
 -- name: GetUserByID :one
-SELECT id, first_name, last_name, email, password_hash, display_name, email_verified, created_at
+SELECT id, first_name, last_name, email, password_hash, display_name, email_verified, is_admin, created_at
 FROM users
 WHERE id = ?;
 
 -- name: GetUserByEmail :one
-SELECT id, first_name, last_name, email, password_hash, display_name, email_verified, created_at
+SELECT id, first_name, last_name, email, password_hash, display_name, email_verified, is_admin, created_at
 FROM users
 WHERE email = ?;
 
@@ -273,3 +273,76 @@ WHERE user_id = ? AND setting_id = ?;
 SELECT COALESCE(SUM(value), 0) as score, COUNT(id) as total
 FROM votes
 WHERE setting_id = ?;
+
+-- =====================
+-- ADMIN QUERIES
+-- =====================
+
+-- name: GetAdminStats :one
+SELECT
+    (SELECT COUNT(*) FROM users) as total_users,
+    (SELECT COUNT(*) FROM users WHERE email_verified = TRUE) as verified_users,
+    (SELECT COUNT(*) FROM users WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)) as users_this_week,
+    (SELECT COUNT(*) FROM settings) as total_settings,
+    (SELECT COUNT(*) FROM settings WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)) as settings_this_week,
+    (SELECT COUNT(*) FROM votes) as total_votes,
+    (SELECT COUNT(*) FROM votes WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)) as votes_this_week;
+
+-- name: GetTopMaterialsBySettings :many
+SELECT m.name as material_name, COUNT(s.id) as setting_count
+FROM materials m
+JOIN settings s ON s.material_id = m.id
+GROUP BY m.id, m.name
+ORDER BY setting_count DESC
+LIMIT 5;
+
+-- name: GetSettingsByLaserType :many
+SELECT laser_type, COUNT(*) as count
+FROM settings
+GROUP BY laser_type
+ORDER BY count DESC;
+
+-- name: GetAllUsersAdmin :many
+SELECT u.id, u.first_name, u.last_name, u.email, u.display_name, u.email_verified, u.is_admin, u.created_at,
+       COUNT(s.id) as setting_count
+FROM users u
+LEFT JOIN settings s ON s.user_id = u.id
+WHERE (sqlc.narg(search) IS NULL OR u.email LIKE CONCAT('%', sqlc.narg(search), '%'))
+GROUP BY u.id
+ORDER BY u.created_at DESC
+LIMIT ? OFFSET ?;
+
+-- name: GetUserCountAdmin :one
+SELECT COUNT(*) as total
+FROM users
+WHERE (sqlc.narg(search) IS NULL OR email LIKE CONCAT('%', sqlc.narg(search), '%'));
+
+-- name: GetAllSettingsAdmin :many
+SELECT s.id, s.user_id, s.material_id, s.laser_type, s.wattage, s.operation_type,
+       s.max_power, s.min_power, s.speed, s.created_at,
+       u.email as user_email, u.display_name as user_display_name,
+       m.name as material_name,
+       CAST(COALESCE(SUM(v.value), 0) AS SIGNED) as vote_score
+FROM settings s
+JOIN users u ON s.user_id = u.id
+JOIN materials m ON s.material_id = m.id
+LEFT JOIN votes v ON v.setting_id = s.id
+WHERE (sqlc.narg(material_id) IS NULL OR s.material_id = sqlc.narg(material_id))
+  AND (sqlc.narg(laser_type) IS NULL OR s.laser_type = sqlc.narg(laser_type))
+GROUP BY s.id
+ORDER BY s.created_at DESC
+LIMIT ? OFFSET ?;
+
+-- name: GetSettingsCountAdmin :one
+SELECT COUNT(*) as total
+FROM settings s
+WHERE (sqlc.narg(material_id) IS NULL OR s.material_id = sqlc.narg(material_id))
+  AND (sqlc.narg(laser_type) IS NULL OR s.laser_type = sqlc.narg(laser_type));
+
+-- name: GetUserByIDAdmin :one
+SELECT u.id, u.first_name, u.last_name, u.email, u.display_name, u.email_verified, u.is_admin, u.created_at,
+       COUNT(s.id) as setting_count
+FROM users u
+LEFT JOIN settings s ON s.user_id = u.id
+WHERE u.id = ?
+GROUP BY u.id;
