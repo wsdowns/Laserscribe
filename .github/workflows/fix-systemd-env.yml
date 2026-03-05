@@ -33,9 +33,8 @@ jobs:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
         run: |
-          ssh $USER@$HOST << EOF
-            # Update systemd service file to include environment variables
-            sudo bash -c 'cat > /etc/systemd/system/laserscribe.service << EOL
+          # Create systemd service file content
+          cat > /tmp/laserscribe.service << EOF
 [Unit]
 Description=Laserscribe API Server
 After=network.target mysql.service
@@ -55,10 +54,13 @@ Environment="APP_BASE_URL=$APP_BASE_URL"
 
 [Install]
 WantedBy=multi-user.target
-EOL'
+EOF
 
-            # Reload systemd and restart service
+          # Copy to server and install
+          scp /tmp/laserscribe.service $USER@$HOST:/tmp/
+          ssh $USER@$HOST << 'ENDSSH'
+            sudo mv /tmp/laserscribe.service /etc/systemd/system/laserscribe.service
             sudo systemctl daemon-reload
             sudo systemctl restart laserscribe
             sudo systemctl status laserscribe --no-pager
-          EOF
+          ENDSSH
