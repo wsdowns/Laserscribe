@@ -31,6 +31,13 @@ jobs:
           scp backend/setup-db.sh $USER@$HOST:~/
           ssh $USER@$HOST "chmod +x ~/setup-db.sh"
 
+      - name: Stop backend service
+        env:
+          HOST: ${{ secrets.LIGHTSAIL_HOST }}
+          USER: ${{ secrets.LIGHTSAIL_USER }}
+        run: |
+          ssh $USER@$HOST "sudo systemctl stop laserscribe"
+
       - name: Setup database
         env:
           HOST: ${{ secrets.LIGHTSAIL_HOST }}
