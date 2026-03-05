@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"crypto/tls"
 	"database/sql"
 	"encoding/hex"
 	"encoding/xml"
@@ -470,7 +471,7 @@ func sendVerificationEmail(c *gin.Context, userID int32, email string) error {
 
 	smtpPort := os.Getenv("SMTP_PORT")
 	if smtpPort == "" {
-		smtpPort = "2525"
+		smtpPort = "587" // Use STARTTLS port instead of 2525
 	}
 	smtpUser := os.Getenv("SMTP_USER")
 	smtpPass := os.Getenv("SMTP_PASS")
@@ -485,10 +486,52 @@ func sendVerificationEmail(c *gin.Context, userID int32, email string) error {
 	msg := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n%s",
 		smtpFrom, email, subject, body)
 
+	// Use TLS for SMTP2GO
 	auth := smtp.PlainAuth("", smtpUser, smtpPass, smtpHost)
-	err = smtp.SendMail(smtpHost+":"+smtpPort, auth, smtpFrom, []string{email}, []byte(msg))
+
+	// Connect with STARTTLS
+	addr := smtpHost + ":" + smtpPort
+	client, err := smtp.Dial(addr)
 	if err != nil {
-		return fmt.Errorf("failed to send email: %w", err)
+		return fmt.Errorf("failed to connect to SMTP server: %w", err)
+	}
+	defer client.Close()
+
+	// Start TLS
+	if err = client.StartTLS(&tls.Config{ServerName: smtpHost}); err != nil {
+		return fmt.Errorf("failed to start TLS: %w", err)
+	}
+
+	// Authenticate
+	if err = client.Auth(auth); err != nil {
+		return fmt.Errorf("failed to authenticate: %w", err)
+	}
+
+	// Set sender and recipient
+	if err = client.Mail(smtpFrom); err != nil {
+		return fmt.Errorf("failed to set sender: %w", err)
+	}
+	if err = client.Rcpt(email); err != nil {
+		return fmt.Errorf("failed to set recipient: %w", err)
+	}
+
+	// Send the email body
+	w, err := client.Data()
+	if err != nil {
+		return fmt.Errorf("failed to get data writer: %w", err)
+	}
+	_, err = w.Write([]byte(msg))
+	if err != nil {
+		return fmt.Errorf("failed to write message: %w", err)
+	}
+	err = w.Close()
+	if err != nil {
+		return fmt.Errorf("failed to close writer: %w", err)
+	}
+
+	err = client.Quit()
+	if err != nil {
+		return fmt.Errorf("failed to quit: %w", err)
 	}
 
 	log.Printf("Verification email sent to %s", email)
