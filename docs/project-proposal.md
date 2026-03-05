@@ -181,10 +181,16 @@ Maps 1:1 to LightBurn `.clb` CutSetting fields. See `docs/lightburn-clb-format.m
 
 ---
 
-## 6. Future Considerations
+## 6. Laser Make and Model Collection
 
-### Machine Brands & Models
+**Status:** Active feature (see `docs/laser-make-model-feature.md` for full spec)
 
-The initial build intentionally omits machine brand and model tables. Settings are discoverable by laser type and wattage alone, which is sufficient for cross-machine compatibility.
+Laserscribe collects laser make and model information during contribution to help users identify which specific machines the settings were optimized for. This data is stored in the `settings.layer_name` column and exported to the `<name>` field in .clb files.
 
-When the community grows, we may add brand/model tables with an **alias system** (similar to material aliases) to normalize inconsistent naming conventions (e.g., "OMTech" vs "omtech" vs "Om Tech", "Gweike G2 50" vs "G2 50 Max"). This would enable browsing by machine ("show me all settings for my Gweike G2") without blocking uploads or requiring exact name matches. Brand/model would remain optional metadata on settings — never a required foreign key.
+**User Flows:**
+- **Manual entry:** User enters make/model in a required text field when contributing a single setting
+- **Bulk .clb upload:** User enters make/model once, applied to all settings in the uploaded file
+
+**Storage:** Uses the existing `layer_name` VARCHAR(200) column. No schema changes required.
+
+**Future Enhancement:** When the community grows, we may add normalized tables with an **alias system** (similar to material aliases) to handle inconsistent naming (e.g., "OMTech" vs "omtech", "Gweike G2 50" vs "G2 50 Max"). This would enable autocomplete suggestions and browsing by machine. The current free-text approach can be migrated to normalized tables later without data loss.

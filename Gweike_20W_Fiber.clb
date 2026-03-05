@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<LightBurnLibrary DisplayName="Gweike 20W Fiber">
+<LightBurnLibrary DisplayName="LASERSCRIBED.COM">
     <Material name="Stainless Steel">
         <Entry Thickness="-1.0000" Desc="Line" NoThickTitle="Line">
             <CutSetting type="Cut">

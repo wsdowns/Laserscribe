@@ -34,6 +34,8 @@ LightBurn uses `.clb` files to store material library presets. The format is und
 |-----------|----------|-------------|
 | `DisplayName` | **Yes** | Name shown in LightBurn's library dropdown. Without this attribute, the library will not load. |
 
+**Laserscribe Standard:** All .clb files exported by Laserscribe should use `DisplayName="LASERSCRIBED.COM"` for consistent branding across all material libraries.
+
 ## Material Element
 
 ```xml
@@ -41,6 +43,12 @@ LightBurn uses `.clb` files to store material library presets. The format is und
 ```
 
 Groups entries by material. LightBurn sorts materials alphabetically on save.
+
+**Laserscribe Convention:** When exporting settings with laser make/model information, append it in parentheses:
+```xml
+<Material name="Stainless Steel (Gweike 20W Fiber)">
+```
+This displays the laser info in LightBurn's material tree, helping users identify which laser the settings are optimized for.
 
 ## Entry Element
 
@@ -54,6 +62,24 @@ Groups entries by material. LightBurn sorts materials alphabetically on save.
 | `Desc` | Yes | Description/operation name shown in the library tree. |
 | `NoThickTitle` | Yes | Title used when thickness is unspecified (`-1.0000`). Typically matches `Desc`. |
 
+**Laserscribe 3-Level Hierarchy Handling:**
+
+When `NoThickTitle != Desc`, a 3-level hierarchy is created:
+```xml
+<Material name="Brass-Fill">
+    <Entry Desc="Fastest Speed" NoThickTitle="Optimized Brass Fill Settings">
+```
+
+This creates: `Brass-Fill → Optimized Brass Fill Settings → Fastest Speed`
+
+**Import Strategy:** Concatenate material name with NoThickTitle:
+- Material in DB: `"Brass-Fill - Optimized Brass Fill Settings"`
+- Operation: Maps from `Desc` value
+
+When `NoThickTitle == Desc` (standard 2-level):
+- Material in DB: Original material name (e.g., `"Stainless Steel"`)
+- Operation: Maps from `Desc` value
+
 ## CutSetting Element
 
 ```xml
@@ -65,8 +91,39 @@ Groups entries by material. LightBurn sorts materials alphabetically on save.
 | `Cut` | Line | `Cut` | Cutting, scoring, vector lines |
 | `Scan` | Fill | `Scan` | Raster engraving, fills |
 | `Scan+Cut` | Fill+Line | `ScanCut` | Combined fill and outline |
+| `Image` | Image | `Scan` | Raster image engraving (photos, grayscale) |
 
 **Important:** LightBurn uses `"Scan+Cut"` in the XML but the database ENUM stores this as `ScanCut` (the `+` character is problematic in ENUMs and URL query params). Import/export code must map between these two representations.
+
+### SubLayer Elements
+
+Some CutSettings contain nested `<SubLayer>` elements for multi-pass operations (e.g., cleanup passes in 3D engraving):
+
+```xml
+<CutSetting type="Image">
+    <subname Value="3D Slice"/>
+    <maxPower Value="85"/>
+    <speed Value="2500"/>
+    ...
+    <SubLayer type="Scan" index="1">
+        <subname Value="Cleanup"/>
+        <maxPower Value="30"/>
+        <speed Value="7000"/>
+        <isCleanup Value="1"/>
+        ...
+    </SubLayer>
+</CutSetting>
+```
+
+**Laserscribe Import Strategy:** Treat each SubLayer as a separate setting:
+- **Main CutSetting** → Material: `"{MaterialName} - {NoThickTitle}"`, uses main parameters
+- **SubLayer** → Material: `"{MaterialName} - {subname}"`, uses SubLayer parameters
+
+Example: `Brass-Engrave` with cleanup pass becomes two settings:
+1. `"Brass-Engrave - Optimized Engrave Settings"` (main 3D slice pass)
+2. `"Brass-Engrave - Cleanup"` (cleanup pass)
+
+This keeps the data model flat while preserving multi-pass workflows.
 
 ## CutSetting Fields
 
@@ -145,6 +202,8 @@ Fields specific to `Scan` (Fill) and `Scan+Cut` (Fill+Line) modes:
 |-------|------|---------|-------------|
 | `name` | string | `""` | Layer name. Can hold a user-defined name or be left empty. |
 | `subname` | string | `""` | Sub-layer name. Used for additional layer identification. |
+
+**Laserscribe Note:** The `name` field is not preserved in LightBurn library files (stripped on load). Laserscribe stores laser make/model in the database but encodes it in the material name during .clb export instead (e.g., `<Material name="Stainless Steel (Gweike 20W Fiber)">`).
 
 ## Complete Example (All Fields)
 
