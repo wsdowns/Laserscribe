@@ -95,6 +95,7 @@ func main() {
 	// Settings (require authentication + email verification)
 	r.POST("/api/settings", authMiddleware(), emailVerifiedMiddleware(), createSettingHandler)
 	r.POST("/api/settings/import", authMiddleware(), emailVerifiedMiddleware(), importCLBHandler)
+	r.GET("/api/settings/export", authMiddleware(), exportCLBHandler)
 	r.PUT("/api/settings/:id", authMiddleware(), emailVerifiedMiddleware(), updateSettingHandler)
 	r.DELETE("/api/settings/:id", authMiddleware(), emailVerifiedMiddleware(), deleteSettingHandler)
 	r.POST("/api/settings/:id/vote", authMiddleware(), voteHandler)
@@ -204,7 +205,8 @@ func emailVerifiedMiddleware() gin.HandlerFunc {
 // =====================
 
 type RegisterRequest struct {
-	Username    string `json:"username" binding:"required"`
+	FirstName   string `json:"firstName" binding:"required"`
+	LastName    string `json:"lastName" binding:"required"`
 	Email       string `json:"email" binding:"required"`
 	Password    string `json:"password" binding:"required"`
 	DisplayName string `json:"displayName"`
@@ -225,18 +227,19 @@ func registerHandler(c *gin.Context) {
 
 	displayName := req.DisplayName
 	if displayName == "" {
-		displayName = req.Username
+		displayName = req.FirstName + " " + req.LastName
 	}
 
 	result, err := queries.CreateUser(c.Request.Context(), db.CreateUserParams{
-		Username:     req.Username,
+		FirstName:    req.FirstName,
+		LastName:     req.LastName,
 		Email:        req.Email,
 		PasswordHash: string(hash),
 		DisplayName:  sql.NullString{String: displayName, Valid: true},
 	})
 	if err != nil {
 		if strings.Contains(err.Error(), "Duplicate") {
-			c.JSON(http.StatusConflict, gin.H{"error": "username or email already exists"})
+			c.JSON(http.StatusConflict, gin.H{"error": "email already exists"})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -256,7 +259,7 @@ func registerHandler(c *gin.Context) {
 }
 
 type LoginRequest struct {
-	Username string `json:"username" binding:"required"`
+	Email    string `json:"email" binding:"required"`
 	Password string `json:"password" binding:"required"`
 }
 
@@ -267,7 +270,7 @@ func loginHandler(c *gin.Context) {
 		return
 	}
 
-	user, err := queries.GetUserByUsername(c.Request.Context(), req.Username)
+	user, err := queries.GetUserByEmail(c.Request.Context(), req.Email)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
 		return
@@ -297,7 +300,8 @@ func loginHandler(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"id":          user.ID,
-		"username":    user.Username,
+		"firstName":   user.FirstName,
+		"lastName":    user.LastName,
 		"displayName": displayName,
 	})
 }
@@ -322,7 +326,8 @@ func meHandler(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"id":          user.ID,
-		"username":    user.Username,
+		"firstName":   user.FirstName,
+		"lastName":    user.LastName,
 		"email":       user.Email,
 		"displayName": displayName,
 	})
@@ -394,7 +399,7 @@ func verifyEmailHandler(c *gin.Context) {
 		return
 	}
 
-	c.Redirect(http.StatusFound, "/login?verified=true")
+	c.Redirect(http.StatusFound, "/verified")
 }
 
 type ResendVerificationRequest struct {
@@ -624,39 +629,43 @@ func getSettingHandler(c *gin.Context) {
 }
 
 type CreateSettingRequest struct {
-	MaterialID     int32   `json:"materialId" binding:"required"`
-	LaserType      string  `json:"laserType" binding:"required"`
-	Wattage        int32   `json:"wattage" binding:"required"`
-	OperationType  string  `json:"operationType" binding:"required"`
-	MaxPower       string  `json:"maxPower" binding:"required"`
-	MinPower       string  `json:"minPower"`
-	MaxPower2      *string `json:"maxPower2"`
-	MinPower2      *string `json:"minPower2"`
-	Speed          string  `json:"speed" binding:"required"`
-	NumPasses      int32   `json:"numPasses"`
-	ZOffset        *string `json:"zOffset"`
-	ZPerPass       *string `json:"zPerPass"`
-	ScanInterval   *string `json:"scanInterval"`
-	Angle          *string `json:"angle"`
-	AnglePerPass   *string `json:"anglePerPass"`
-	CrossHatch     bool    `json:"crossHatch"`
-	Bidir          *bool   `json:"bidir"`
-	ScanOpt        *string `json:"scanOpt"`
-	FloodFill      bool    `json:"floodFill"`
-	AutoRotate     bool    `json:"autoRotate"`
-	Overscan       *string `json:"overscan"`
-	OverscanPercent *string `json:"overscanPercent"`
-	Frequency      *string `json:"frequency"`
-	WobbleEnable   *bool   `json:"wobbleEnable"`
-	UseDotCorrection *bool `json:"useDotCorrection"`
-	Kerf           *string `json:"kerf"`
-	RunBlower      *bool   `json:"runBlower"`
-	LayerName      *string `json:"layerName"`
-	LayerSubname   *string `json:"layerSubname"`
-	Priority       *int32  `json:"priority"`
-	TabCount       *int32  `json:"tabCount"`
-	TabCountMax    *int32  `json:"tabCountMax"`
-	Notes          string  `json:"notes"`
+	MaterialID       int32   `json:"materialId" binding:"required"`
+	LaserType        string  `json:"laserType" binding:"required"`
+	Wattage          int32   `json:"wattage" binding:"required"`
+	OperationType    string  `json:"operationType" binding:"required"`
+	MaxPower         string  `json:"maxPower" binding:"required"`
+	MinPower         string  `json:"minPower"`
+	MaxPower2        *string `json:"maxPower2"`
+	MinPower2        *string `json:"minPower2"`
+	Speed            string  `json:"speed" binding:"required"`
+	NumPasses        int32   `json:"numPasses"`
+	ZOffset          *string `json:"zOffset"`
+	ZPerPass         *string `json:"zPerPass"`
+	ScanInterval     *string `json:"scanInterval"`
+	Angle            *string `json:"angle"`
+	AnglePerPass     *string `json:"anglePerPass"`
+	CrossHatch       bool    `json:"crossHatch"`
+	Bidir            *bool   `json:"bidir"`
+	ScanOpt          *string `json:"scanOpt"`
+	FloodFill        bool    `json:"floodFill"`
+	AutoRotate       bool    `json:"autoRotate"`
+	Overscan         *string `json:"overscan"`
+	OverscanPercent  *string `json:"overscanPercent"`
+	Frequency        *string `json:"frequency"`
+	WobbleEnable     *bool   `json:"wobbleEnable"`
+	UseDotCorrection *bool   `json:"useDotCorrection"`
+	PerforationMode  bool    `json:"perforationMode"`
+	ImageMode        *string `json:"imageMode"`
+	NegativeImage    bool    `json:"negativeImage"`
+	DotWidth         *string `json:"dotWidth"`
+	Kerf               *string `json:"kerf"`
+	RunBlower          *bool   `json:"runBlower"`
+	LayerName          *string `json:"layerName"`
+	LayerSubname       *string `json:"layerSubname"`
+	Priority           *int32  `json:"priority"`
+	TabCount           *int32  `json:"tabCount"`
+	TabCountMax        *int32  `json:"tabCountMax"`
+	Notes              string  `json:"notes"`
 }
 
 func createSettingHandler(c *gin.Context) {
@@ -707,17 +716,21 @@ func createSettingHandler(c *gin.Context) {
 		AutoRotate:       req.AutoRotate,
 		Overscan:         nullString(req.Overscan),
 		OverscanPercent:  nullString(req.OverscanPercent),
-		Frequency:        nullString(req.Frequency),
+		Frequency:            nullString(req.Frequency),
 		WobbleEnable:     nullBool(req.WobbleEnable),
 		UseDotCorrection: nullBool(req.UseDotCorrection),
+		PerforationMode:  req.PerforationMode,
+		ImageMode:        nullString(req.ImageMode),
+		NegativeImage:    req.NegativeImage,
+		DotWidth:         nullString(req.DotWidth),
 		Kerf:             nullString(req.Kerf),
-		RunBlower:        nullBool(req.RunBlower),
-		LayerName:        nullString(req.LayerName),
-		LayerSubname:     nullString(req.LayerSubname),
-		Priority:         nullInt32(req.Priority),
-		TabCount:         nullInt32(req.TabCount),
-		TabCountMax:      nullInt32(req.TabCountMax),
-		Notes:            sql.NullString{String: req.Notes, Valid: req.Notes != ""},
+		RunBlower:            nullBool(req.RunBlower),
+		LayerName:            nullString(req.LayerName),
+		LayerSubname:         nullString(req.LayerSubname),
+		Priority:             nullInt32(req.Priority),
+		TabCount:             nullInt32(req.TabCount),
+		TabCountMax:          nullInt32(req.TabCountMax),
+		Notes:                sql.NullString{String: req.Notes, Valid: req.Notes != ""},
 	})
 	if err != nil {
 		if strings.Contains(err.Error(), "Duplicate") {
@@ -733,35 +746,39 @@ func createSettingHandler(c *gin.Context) {
 }
 
 type UpdateSettingRequest struct {
-	MaxPower       string  `json:"maxPower" binding:"required"`
-	MinPower       string  `json:"minPower"`
-	MaxPower2      *string `json:"maxPower2"`
-	MinPower2      *string `json:"minPower2"`
-	Speed          string  `json:"speed" binding:"required"`
-	NumPasses      int32   `json:"numPasses"`
-	ZOffset        *string `json:"zOffset"`
-	ZPerPass       *string `json:"zPerPass"`
-	ScanInterval   *string `json:"scanInterval"`
-	Angle          *string `json:"angle"`
-	AnglePerPass   *string `json:"anglePerPass"`
-	CrossHatch     bool    `json:"crossHatch"`
-	Bidir          *bool   `json:"bidir"`
-	ScanOpt        *string `json:"scanOpt"`
-	FloodFill      bool    `json:"floodFill"`
-	AutoRotate     bool    `json:"autoRotate"`
-	Overscan       *string `json:"overscan"`
-	OverscanPercent *string `json:"overscanPercent"`
-	Frequency      *string `json:"frequency"`
-	WobbleEnable   *bool   `json:"wobbleEnable"`
-	UseDotCorrection *bool `json:"useDotCorrection"`
-	Kerf           *string `json:"kerf"`
-	RunBlower      *bool   `json:"runBlower"`
-	LayerName      *string `json:"layerName"`
-	LayerSubname   *string `json:"layerSubname"`
-	Priority       *int32  `json:"priority"`
-	TabCount       *int32  `json:"tabCount"`
-	TabCountMax    *int32  `json:"tabCountMax"`
-	Notes          string  `json:"notes"`
+	MaxPower         string  `json:"maxPower" binding:"required"`
+	MinPower         string  `json:"minPower"`
+	MaxPower2        *string `json:"maxPower2"`
+	MinPower2        *string `json:"minPower2"`
+	Speed            string  `json:"speed" binding:"required"`
+	NumPasses        int32   `json:"numPasses"`
+	ZOffset          *string `json:"zOffset"`
+	ZPerPass         *string `json:"zPerPass"`
+	ScanInterval     *string `json:"scanInterval"`
+	Angle            *string `json:"angle"`
+	AnglePerPass     *string `json:"anglePerPass"`
+	CrossHatch       bool    `json:"crossHatch"`
+	Bidir            *bool   `json:"bidir"`
+	ScanOpt          *string `json:"scanOpt"`
+	FloodFill        bool    `json:"floodFill"`
+	AutoRotate       bool    `json:"autoRotate"`
+	Overscan         *string `json:"overscan"`
+	OverscanPercent  *string `json:"overscanPercent"`
+	Frequency        *string `json:"frequency"`
+	WobbleEnable     *bool   `json:"wobbleEnable"`
+	UseDotCorrection *bool   `json:"useDotCorrection"`
+	PerforationMode  bool    `json:"perforationMode"`
+	ImageMode        *string `json:"imageMode"`
+	NegativeImage    bool    `json:"negativeImage"`
+	DotWidth         *string `json:"dotWidth"`
+	Kerf             *string `json:"kerf"`
+	RunBlower        *bool   `json:"runBlower"`
+	LayerName        *string `json:"layerName"`
+	LayerSubname     *string `json:"layerSubname"`
+	Priority         *int32  `json:"priority"`
+	TabCount         *int32  `json:"tabCount"`
+	TabCountMax      *int32  `json:"tabCountMax"`
+	Notes            string  `json:"notes"`
 }
 
 func updateSettingHandler(c *gin.Context) {
@@ -824,19 +841,23 @@ func updateSettingHandler(c *gin.Context) {
 		AutoRotate:       req.AutoRotate,
 		Overscan:         nullString(req.Overscan),
 		OverscanPercent:  nullString(req.OverscanPercent),
-		Frequency:        nullString(req.Frequency),
+		Frequency:            nullString(req.Frequency),
 		WobbleEnable:     nullBool(req.WobbleEnable),
 		UseDotCorrection: nullBool(req.UseDotCorrection),
+		PerforationMode:  req.PerforationMode,
+		ImageMode:        nullString(req.ImageMode),
+		NegativeImage:    req.NegativeImage,
+		DotWidth:         nullString(req.DotWidth),
 		Kerf:             nullString(req.Kerf),
-		RunBlower:        nullBool(req.RunBlower),
-		LayerName:        nullString(req.LayerName),
-		LayerSubname:     nullString(req.LayerSubname),
-		Priority:         nullInt32(req.Priority),
-		TabCount:         nullInt32(req.TabCount),
-		TabCountMax:      nullInt32(req.TabCountMax),
-		Notes:            sql.NullString{String: req.Notes, Valid: req.Notes != ""},
-		ID:               int32(settingID),
-		UserID:           int32(userID),
+		RunBlower:            nullBool(req.RunBlower),
+		LayerName:            nullString(req.LayerName),
+		LayerSubname:         nullString(req.LayerSubname),
+		Priority:             nullInt32(req.Priority),
+		TabCount:             nullInt32(req.TabCount),
+		TabCountMax:          nullInt32(req.TabCountMax),
+		Notes:                sql.NullString{String: req.Notes, Valid: req.Notes != ""},
+		ID:                   int32(settingID),
+		UserID:               int32(userID),
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -924,9 +945,15 @@ type CutSetting struct {
 	AutoRotate       ValueElement  `xml:"autoRotate"`
 	Overscan         ValueElement  `xml:"overscan"`
 	OverscanPercent  ValueElement  `xml:"overscanPercent"`
-	WobbleEnable     ValueElement  `xml:"wobbleEnable"`
-	UseDotCorrection ValueElement  `xml:"useDotCorrection"`
-	Kerf             ValueElement  `xml:"kerf"`
+	WobbleEnable         ValueElement  `xml:"wobbleEnable"`
+	UseDotCorrection     ValueElement  `xml:"useDotCorrection"`
+	PerforationMode      ValueElement  `xml:"perforationMode"`
+	ImageMode            ValueElement  `xml:"imageMode"`
+	DitherMode           ValueElement  `xml:"ditherMode"`
+	NegativeImage        ValueElement  `xml:"negativeImage"`
+	EnableDotWidthAdjust ValueElement  `xml:"enableDotWidthAdjust"`
+	DotWidth             ValueElement  `xml:"dotWidth"`
+	Kerf                 ValueElement  `xml:"kerf"`
 	RunBlower        ValueElement  `xml:"runBlower"`
 	Subname          ValueElement  `xml:"subname"`
 	Priority         ValueElement  `xml:"priority"`
@@ -1018,11 +1045,8 @@ func importCLBHandler(c *gin.Context) {
 		}
 
 		for _, entry := range material.Entries {
-			// Determine material name based on hierarchy
+			// Use base material name without modification
 			materialName := baseMaterialName
-			if entry.NoThickTitle != "" && entry.NoThickTitle != entry.Desc {
-				materialName = baseMaterialName + " - " + entry.NoThickTitle
-			}
 
 			// Create setting from main CutSetting
 			if err := createSettingFromCutSetting(
@@ -1143,6 +1167,9 @@ func createSettingFromCutSetting(cs CutSetting, materialName, operation, laserMa
 	operationType := db.SettingsOperationTypeCut
 	if cs.Type == "Scan" {
 		operationType = db.SettingsOperationTypeScan
+	} else if cs.Type == "Image" {
+		// Image mode should be treated as Scan type with imageMode set
+		operationType = db.SettingsOperationTypeScan
 	}
 
 	// Convert laser type string to enum
@@ -1150,11 +1177,11 @@ func createSettingFromCutSetting(cs CutSetting, materialName, operation, laserMa
 
 	// Create setting
 	_, err = queries.CreateSetting(context.Background(), db.CreateSettingParams{
-		UserID:        userID,
-		MaterialID:    materialID,
-		LaserType:     laserTypeEnum,
-		Wattage:       wattage,
-		OperationType: operationType,
+		UserID:           userID,
+		MaterialID:       materialID,
+		LaserType:        laserTypeEnum,
+		Wattage:          wattage,
+		OperationType:    operationType,
 		MaxPower:         maxPower,
 		MinPower:         minPower,
 		MaxPower2:        nullString(&cs.MaxPower2.Value),
@@ -1175,7 +1202,11 @@ func createSettingFromCutSetting(cs CutSetting, materialName, operation, laserMa
 		OverscanPercent:  nullString(&cs.OverscanPercent.Value),
 		Frequency:        nullString(&cs.Frequency.Value),
 		WobbleEnable:     nullBoolFromString(&cs.WobbleEnable.Value),
-		UseDotCorrection: nullBoolFromString(&cs.UseDotCorrection.Value),
+		UseDotCorrection: parseBoolOrFallback(cs.UseDotCorrection.Value, cs.EnableDotWidthAdjust.Value),
+		PerforationMode:  parseBool(cs.PerforationMode.Value),
+		ImageMode:        imageMode(cs),
+		NegativeImage:    parseBool(cs.NegativeImage.Value),
+		DotWidth:         nullString(&cs.DotWidth.Value),
 		Kerf:             nullString(&cs.Kerf.Value),
 		RunBlower:        nullBoolFromString(&cs.RunBlower.Value),
 		LayerName:        sql.NullString{String: laserMakeModel, Valid: true},
@@ -1276,6 +1307,30 @@ func parseBool(s string) bool {
 	return s == "1" || strings.ToLower(s) == "true"
 }
 
+// parseBoolOrFallback tries primary first, falls back to secondary for backward compatibility
+func parseBoolOrFallback(primary, secondary string) sql.NullBool {
+	if primary != "" {
+		return sql.NullBool{Bool: parseBool(primary), Valid: true}
+	}
+	if secondary != "" {
+		return sql.NullBool{Bool: parseBool(secondary), Valid: true}
+	}
+	return sql.NullBool{Valid: false}
+}
+
+// imageMode extracts the image mode from a CutSetting, preferring ditherMode
+func imageMode(cs CutSetting) sql.NullString {
+	// Prefer ditherMode as that's what LightBurn uses for Image mode
+	if cs.DitherMode.Value != "" {
+		return sql.NullString{String: cs.DitherMode.Value, Valid: true}
+	}
+	// Fall back to imageMode if present
+	if cs.ImageMode.Value != "" {
+		return sql.NullString{String: cs.ImageMode.Value, Valid: true}
+	}
+	return sql.NullString{Valid: false}
+}
+
 func nullBoolFromString(s *string) sql.NullBool {
 	if s == nil || *s == "" {
 		return sql.NullBool{Valid: false}
@@ -1368,6 +1423,224 @@ func getUserSettingsHandler(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, settings)
+}
+
+// =====================
+// CLB EXPORT HANDLER
+// =====================
+
+func exportCLBHandler(c *gin.Context) {
+	userIDVal, _ := c.Get("user_id")
+	userID := userIDVal.(int32)
+
+	// Get user's settings
+	allSettings, err := queries.GetUserSettings(c.Request.Context(), userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve settings"})
+		return
+	}
+
+	// Filter by specific IDs if provided
+	idsParam := c.Query("ids")
+	var settings []db.GetUserSettingsRow
+
+	if idsParam != "" {
+		// Parse comma-separated IDs
+		idStrings := strings.Split(idsParam, ",")
+		idMap := make(map[int32]bool)
+		for _, idStr := range idStrings {
+			if id, err := strconv.Atoi(strings.TrimSpace(idStr)); err == nil {
+				idMap[int32(id)] = true
+			}
+		}
+
+		// Filter settings by requested IDs
+		for _, setting := range allSettings {
+			if idMap[setting.ID] {
+				settings = append(settings, setting)
+			}
+		}
+	} else {
+		settings = allSettings
+	}
+
+	if len(settings) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "No settings found to export"})
+		return
+	}
+
+	// Group settings by material
+	type MaterialSettings struct {
+		MaterialName string
+		Settings     []db.GetUserSettingsRow
+	}
+	materialsMap := make(map[string]*MaterialSettings)
+
+	for _, setting := range settings {
+		materialName := setting.MaterialName
+		if materialsMap[materialName] == nil {
+			materialsMap[materialName] = &MaterialSettings{
+				MaterialName: materialName,
+				Settings:     []db.GetUserSettingsRow{},
+			}
+		}
+		materialsMap[materialName].Settings = append(materialsMap[materialName].Settings, setting)
+	}
+
+	// Generate CLB XML
+	var xmlBuilder strings.Builder
+	xmlBuilder.WriteString(`<?xml version="1.0" encoding="UTF-8"?>` + "\n")
+	xmlBuilder.WriteString(`<LightBurnLibrary DisplayName="Laserscribe Export">` + "\n")
+
+	for _, materialData := range materialsMap {
+		xmlBuilder.WriteString(fmt.Sprintf(`  <Material name="%s">`, materialData.MaterialName) + "\n")
+
+		for idx, setting := range materialData.Settings {
+			// Map operation type to CutSetting type
+			// If imageMode is set, use type="Image"
+			cutType := "Cut"
+			noThickTitle := "Line Settings"
+			desc := "Line"
+
+			if setting.ImageMode.Valid && setting.ImageMode.String != "" {
+				cutType = "Image"
+				// Convert dither mode from database format to display format
+				imageMode := setting.ImageMode.String
+				imageModeDisplay := imageMode
+				imageModeShort := imageMode
+
+				// Reverse mapping: database format → display format
+				switch strings.ToLower(imageMode) {
+				case "jarvis":
+					imageModeDisplay = "Jarvis"
+					imageModeShort = "Jarvis"
+				case "3dslice":
+					imageModeDisplay = "3D Sliced"
+					imageModeShort = "3D"
+				case "stucki":
+					imageModeDisplay = "Stucki"
+					imageModeShort = "Stucki"
+				case "atkinson":
+					imageModeDisplay = "Atkinson"
+					imageModeShort = "Atkinson"
+				default:
+					// Capitalize first letter
+					if len(imageMode) > 0 {
+						imageModeDisplay = strings.ToUpper(imageMode[:1]) + imageMode[1:]
+						imageModeShort = imageModeDisplay
+					}
+				}
+
+				noThickTitle = "Image-" + imageModeShort
+				desc = imageModeDisplay + " Optimized"
+			} else if setting.OperationType == "Scan" {
+				cutType = "Scan"
+				noThickTitle = "Fill Settings"
+				desc = "Fill"
+			} else if setting.OperationType == "ScanCut" {
+				cutType = "Scan"
+				noThickTitle = "Fill+Line Settings"
+				desc = "Fill+Line"
+			}
+
+			xmlBuilder.WriteString(fmt.Sprintf(`    <Entry Thickness="-1.0000" Desc="%s" NoThickTitle="%s">`, desc, noThickTitle) + "\n")
+			xmlBuilder.WriteString(fmt.Sprintf(`      <CutSetting type="%s">`, cutType) + "\n")
+
+			// Write fields in minimal format - only include non-empty values
+			xmlBuilder.WriteString(fmt.Sprintf(`        <index Value="%d"/>`, idx) + "\n")
+			xmlBuilder.WriteString(`        <name Value=""/>` + "\n")
+			linkPath := fmt.Sprintf("%s/%s/%s", materialData.MaterialName, noThickTitle, desc)
+			xmlBuilder.WriteString(fmt.Sprintf(`        <LinkPath Value="%s"/>`, linkPath) + "\n")
+			xmlBuilder.WriteString(fmt.Sprintf(`        <minPower Value="%s"/>`, setting.MinPower) + "\n")
+			xmlBuilder.WriteString(fmt.Sprintf(`        <maxPower Value="%s"/>`, setting.MaxPower) + "\n")
+			xmlBuilder.WriteString(`        <maxPower2 Value="20"/>` + "\n")
+			xmlBuilder.WriteString(fmt.Sprintf(`        <speed Value="%s"/>`, setting.Speed) + "\n")
+
+			// Only include frequency if set
+			if setting.Frequency.Valid && setting.Frequency.String != "" && setting.Frequency.String != "0" {
+				xmlBuilder.WriteString(fmt.Sprintf(`        <frequency Value="%s"/>`, setting.Frequency.String) + "\n")
+			}
+
+			// Only include numPasses if > 1
+			if setting.NumPasses > 1 {
+				xmlBuilder.WriteString(fmt.Sprintf(`        <numPasses Value="%d"/>`, setting.NumPasses) + "\n")
+			}
+
+			// Only include anglePerPass if set
+			if setting.AnglePerPass.Valid && setting.AnglePerPass.String != "" && setting.AnglePerPass.String != "0" {
+				xmlBuilder.WriteString(fmt.Sprintf(`        <anglePerPass Value="%s"/>`, setting.AnglePerPass.String) + "\n")
+			}
+
+			// crossHatch and bidir
+			if setting.CrossHatch {
+				xmlBuilder.WriteString(`        <crossHatch Value="1"/>` + "\n")
+			}
+			if setting.Bidir {
+				xmlBuilder.WriteString(`        <bidir Value="1"/>` + "\n")
+			} else {
+				xmlBuilder.WriteString(`        <bidir Value="0"/>` + "\n")
+			}
+
+			// Only include interval if set
+			if setting.ScanInterval.Valid && setting.ScanInterval.String != "" && setting.ScanInterval.String != "0" {
+				xmlBuilder.WriteString(fmt.Sprintf(`        <interval Value="%s"/>`, setting.ScanInterval.String) + "\n")
+			}
+
+			// Only include angle if set
+			if setting.Angle.Valid && setting.Angle.String != "" && setting.Angle.String != "0" {
+				xmlBuilder.WriteString(fmt.Sprintf(`        <angle Value="%s"/>`, setting.Angle.String) + "\n")
+			}
+
+			// Always include priority
+			xmlBuilder.WriteString(`        <priority Value="0"/>` + "\n")
+
+			// Optional fields
+			if setting.WobbleEnable.Valid && setting.WobbleEnable.Bool {
+				xmlBuilder.WriteString(`        <wobbleEnable Value="1"/>` + "\n")
+			}
+			if setting.PerforationMode {
+				xmlBuilder.WriteString(`        <perforationMode Value="1"/>` + "\n")
+			}
+			// ditherMode for Image mode (convert to lowercase LightBurn format)
+			if setting.ImageMode.Valid && setting.ImageMode.String != "" {
+				ditherMode := strings.ToLower(strings.ReplaceAll(setting.ImageMode.String, " ", ""))
+				// Fix known mappings
+				if ditherMode == "3dsliced" {
+					ditherMode = "3dslice"
+				}
+				xmlBuilder.WriteString(fmt.Sprintf(`        <ditherMode Value="%s"/>`, ditherMode) + "\n")
+			}
+			if setting.NegativeImage {
+				xmlBuilder.WriteString(`        <negativeImage Value="1"/>` + "\n")
+			}
+			if setting.UseDotCorrection.Valid && setting.UseDotCorrection.Bool {
+				xmlBuilder.WriteString(`        <useDotCorrection Value="1"/>` + "\n")
+			}
+			if setting.DotWidth.Valid && setting.DotWidth.String != "" && setting.DotWidth.String != "0" {
+				xmlBuilder.WriteString(fmt.Sprintf(`        <dotWidth Value="%s"/>`, setting.DotWidth.String) + "\n")
+			}
+			if setting.FloodFill {
+				xmlBuilder.WriteString(`        <floodFill Value="1"/>` + "\n")
+			}
+			if setting.AutoRotate {
+				xmlBuilder.WriteString(`        <autoRotate Value="1"/>` + "\n")
+			}
+
+			xmlBuilder.WriteString(`      </CutSetting>` + "\n")
+			xmlBuilder.WriteString(`    </Entry>` + "\n")
+		}
+
+		xmlBuilder.WriteString(`  </Material>` + "\n")
+	}
+
+	xmlBuilder.WriteString(`</LightBurnLibrary>` + "\n")
+
+	// Set headers for file download
+	filename := "LASERSCRIBED.CLB"
+	c.Header("Content-Description", "File Transfer")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+	c.Header("Content-Type", "application/xml")
+	c.Data(http.StatusOK, "application/xml", []byte(xmlBuilder.String()))
 }
 
 // =====================

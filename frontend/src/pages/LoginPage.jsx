@@ -1,29 +1,40 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import Card from '../components/ui/Card'
 
 function LoginPage({ onLogin }) {
-  const [username, setUsername] = useState('')
+  const [searchParams] = useSearchParams()
+  const verified = searchParams.get('verified')
+
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [unverified, setUnverified] = useState(false)
+  const [resendSent, setResendSent] = useState(false)
 
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
+    setUnverified(false)
     setLoading(true)
 
     try {
-      const res = await fetch('/api/login', {
+      const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        credentials: 'include',
+        body: JSON.stringify({ email, password }),
       })
       const data = await res.json()
       if (!res.ok) {
-        setError(data.error || 'Login failed')
+        if (res.status === 403 && data.error === 'email not verified') {
+          setUnverified(true)
+        } else {
+          setError(data.error || 'Login failed')
+        }
         return
       }
       onLogin(data)
@@ -34,6 +45,21 @@ function LoginPage({ onLogin }) {
     }
   }
 
+  async function handleResend() {
+    setResendSent(false)
+    // We don't have the email from username alone, so prompt user
+    const email = prompt('Enter your email address to resend the verification link:')
+    if (!email) return
+
+    await fetch('/api/auth/resend-verification', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ email }),
+    })
+    setResendSent(true)
+  }
+
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-6">
       <Card className="w-full max-w-md">
@@ -42,20 +68,52 @@ function LoginPage({ onLogin }) {
           <p className="text-ls-text-muted text-sm">Sign in to contribute and vote on settings</p>
         </div>
 
+        {verified === 'true' && (
+          <div className="bg-ls-green/10 border border-ls-green/30 rounded-lg p-3 mb-6 text-ls-green text-sm">
+            Email verified! You can now sign in.
+          </div>
+        )}
+
+        {verified === 'expired' && (
+          <div className="bg-ls-red/10 border border-ls-red/30 rounded-lg p-3 mb-6 text-ls-red text-sm">
+            Verification link has expired. Please request a new one.
+          </div>
+        )}
+
+        {verified === 'invalid' && (
+          <div className="bg-ls-red/10 border border-ls-red/30 rounded-lg p-3 mb-6 text-ls-red text-sm">
+            Invalid verification link. Please request a new one.
+          </div>
+        )}
+
         {error && (
           <div className="bg-ls-red/10 border border-ls-red/30 rounded-lg p-3 mb-6 text-ls-red text-sm">
             {error}
           </div>
         )}
 
+        {unverified && (
+          <div className="bg-ls-red/10 border border-ls-red/30 rounded-lg p-3 mb-6 text-sm">
+            <p className="text-ls-red mb-2">Your email has not been verified yet.</p>
+            {resendSent ? (
+              <p className="text-ls-text-muted">Verification link sent! Check your email.</p>
+            ) : (
+              <button onClick={handleResend} className="text-ls-accent hover:underline">
+                Resend verification email
+              </button>
+            )}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
-            label="Username"
-            id="username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            label="Email"
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             required
-            autoComplete="username"
+            autoComplete="email"
           />
           <Input
             label="Password"

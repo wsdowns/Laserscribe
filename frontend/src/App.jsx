@@ -11,6 +11,7 @@ import SettingDetailPage from './pages/SettingDetailPage'
 import ProfilePage from './pages/ProfilePage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
+import VerifiedPage from './pages/VerifiedPage'
 
 const queryClient = new QueryClient()
 
@@ -61,8 +62,9 @@ function App() {
               <Route path="/settings/:id" element={<SettingDetailPage user={user} />} />
               <Route path="/contribute" element={user ? <ContributePage user={user} /> : <Navigate to="/login" />} />
               <Route path="/profile" element={user ? <ProfilePage user={user} /> : <Navigate to="/login" />} />
-              <Route path="/login" element={user ? <Navigate to="/" /> : <LoginPage onLogin={login} />} />
+              <Route path="/login" element={user ? <Navigate to="/search" /> : <LoginPage onLogin={login} />} />
               <Route path="/register" element={user ? <Navigate to="/" /> : <RegisterPage />} />
+              <Route path="/verified" element={<VerifiedPage />} />
             </Routes>
           </div>
         </div>

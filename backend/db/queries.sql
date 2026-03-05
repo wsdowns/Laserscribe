@@ -3,30 +3,25 @@
 -- =====================
 
 -- name: GetUserByID :one
-SELECT id, username, email, password_hash, display_name, email_verified, created_at
+SELECT id, first_name, last_name, email, password_hash, display_name, email_verified, created_at
 FROM users
 WHERE id = ?;
 
--- name: GetUserByUsername :one
-SELECT id, username, email, password_hash, display_name, email_verified, created_at
-FROM users
-WHERE username = ?;
-
 -- name: GetUserByEmail :one
-SELECT id, username, email, password_hash, display_name, email_verified, created_at
+SELECT id, first_name, last_name, email, password_hash, display_name, email_verified, created_at
 FROM users
 WHERE email = ?;
 
 -- name: CreateUser :execresult
-INSERT INTO users (username, email, password_hash, display_name)
-VALUES (?, ?, ?, ?);
+INSERT INTO users (first_name, last_name, email, password_hash, display_name)
+VALUES (?, ?, ?, ?, ?);
 
 -- name: SetVerificationToken :exec
 UPDATE users SET verification_token = ?, verification_expires = ?
 WHERE id = ?;
 
 -- name: GetUserByVerificationToken :one
-SELECT id, username, email, email_verified, verification_expires
+SELECT id, first_name, last_name, email, email_verified, verification_expires
 FROM users
 WHERE verification_token = ?;
 
@@ -122,9 +117,9 @@ SELECT s.id, s.user_id, s.material_id,
        s.layer_name, s.layer_subname,
        s.priority, s.tab_count, s.tab_count_max,
        s.notes, s.created_at, s.updated_at,
-       u.username, u.display_name,
+       u.first_name, u.last_name, u.display_name,
        mat.name as material_name, mc.name as category_name,
-       COALESCE(SUM(v.value), 0) as vote_score,
+       CAST(COALESCE(SUM(v.value), 0) AS SIGNED) as vote_score,
        COUNT(v.id) as vote_count
 FROM settings s
 JOIN users u ON s.user_id = u.id
@@ -139,11 +134,13 @@ SELECT s.id, s.user_id, s.material_id,
        s.laser_type, s.wattage, s.operation_type,
        s.max_power, s.min_power, s.speed,
        s.num_passes, s.scan_interval, s.frequency,
-       s.cross_hatch, s.angle, s.angle_per_pass,
+       s.cross_hatch, s.bidir, s.angle, s.angle_per_pass,
+       s.image_mode, s.negative_image,
+       s.use_dot_correction, s.dot_width,
        s.notes, s.created_at,
-       u.username, u.display_name,
+       u.first_name, u.last_name, u.display_name,
        mat.name as material_name, mc.name as category_name,
-       COALESCE(SUM(v.value), 0) as vote_score,
+       CAST(COALESCE(SUM(v.value), 0) AS SIGNED) as vote_score,
        COUNT(v.id) as vote_count
 FROM settings s
 JOIN users u ON s.user_id = u.id
@@ -165,11 +162,13 @@ SELECT s.id, s.user_id, s.material_id,
        s.laser_type, s.wattage, s.operation_type,
        s.max_power, s.min_power, s.speed,
        s.num_passes, s.scan_interval, s.frequency,
-       s.cross_hatch, s.angle, s.angle_per_pass,
+       s.cross_hatch, s.bidir, s.angle, s.angle_per_pass,
+       s.image_mode, s.negative_image,
+       s.use_dot_correction, s.dot_width,
        s.notes, s.created_at,
-       u.username, u.display_name,
+       u.first_name, u.last_name, u.display_name,
        mat.name as material_name, mc.name as category_name,
-       COALESCE(SUM(v.value), 0) as vote_score,
+       CAST(COALESCE(SUM(v.value), 0) AS SIGNED) as vote_score,
        COUNT(v.id) as vote_count
 FROM settings s
 JOIN users u ON s.user_id = u.id
@@ -185,10 +184,13 @@ SELECT s.id, s.user_id, s.material_id,
        s.laser_type, s.wattage, s.operation_type,
        s.max_power, s.min_power, s.speed,
        s.num_passes, s.scan_interval, s.frequency,
-       s.cross_hatch, s.angle, s.angle_per_pass,
+       s.cross_hatch, s.bidir, s.angle, s.angle_per_pass,
+       s.flood_fill, s.auto_rotate, s.wobble_enable,
+       s.perforation_mode, s.use_dot_correction, s.dot_width,
+       s.image_mode, s.negative_image,
        s.notes, s.created_at, s.updated_at,
        mat.name as material_name, mc.name as category_name,
-       COALESCE(SUM(v.value), 0) as vote_score,
+       CAST(COALESCE(SUM(v.value), 0) AS SIGNED) as vote_score,
        COUNT(v.id) as vote_count
 FROM settings s
 JOIN materials mat ON s.material_id = mat.id
@@ -207,6 +209,8 @@ INSERT INTO settings (
     cross_hatch, bidir, scan_opt,
     flood_fill, auto_rotate, overscan, overscan_percent,
     frequency, wobble_enable, use_dot_correction,
+    perforation_mode, dot_width,
+    image_mode, negative_image,
     kerf, run_blower,
     layer_name, layer_subname,
     priority, tab_count, tab_count_max,
@@ -221,6 +225,8 @@ INSERT INTO settings (
     ?, ?, ?,
     ?, ?,
     ?, ?,
+    ?, ?,
+    ?, ?,
     ?, ?, ?,
     ?
 );
@@ -233,6 +239,8 @@ UPDATE settings SET
     cross_hatch = ?, bidir = ?, scan_opt = ?,
     flood_fill = ?, auto_rotate = ?, overscan = ?, overscan_percent = ?,
     frequency = ?, wobble_enable = ?, use_dot_correction = ?,
+    perforation_mode = ?, dot_width = ?,
+    image_mode = ?, negative_image = ?,
     kerf = ?, run_blower = ?,
     layer_name = ?, layer_subname = ?,
     priority = ?, tab_count = ?, tab_count_max = ?,

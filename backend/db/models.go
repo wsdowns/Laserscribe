@@ -117,48 +117,54 @@ type MaterialCategory struct {
 }
 
 type Setting struct {
-	ID               int32
-	UserID           int32
-	MaterialID       int32
-	LaserType        SettingsLaserType
-	Wattage          int32
-	OperationType    SettingsOperationType
-	MaxPower         string
-	MinPower         string
-	MaxPower2        sql.NullString
-	MinPower2        sql.NullString
-	Speed            string
-	NumPasses        int32
-	ZOffset          sql.NullString
-	ZPerPass         sql.NullString
-	ScanInterval     sql.NullString
-	Angle            sql.NullString
-	AnglePerPass     sql.NullString
-	CrossHatch       bool
-	Bidir            bool
-	ScanOpt          sql.NullString
-	FloodFill        bool
-	AutoRotate       bool
-	Overscan         sql.NullString
-	OverscanPercent  sql.NullString
-	Frequency        sql.NullString
-	WobbleEnable     sql.NullBool
-	UseDotCorrection sql.NullBool
-	Kerf             sql.NullString
-	RunBlower        sql.NullBool
-	LayerName        sql.NullString
-	LayerSubname     sql.NullString
-	Priority         sql.NullInt32
-	TabCount         sql.NullInt32
-	TabCountMax      sql.NullInt32
-	Notes            sql.NullString
-	CreatedAt        sql.NullTime
-	UpdatedAt        sql.NullTime
+	ID                   int32
+	UserID               int32
+	MaterialID           int32
+	LaserType            SettingsLaserType
+	Wattage              int32
+	OperationType        SettingsOperationType
+	MaxPower             string
+	MinPower             string
+	MaxPower2            sql.NullString
+	MinPower2            sql.NullString
+	Speed                string
+	NumPasses            int32
+	ZOffset              sql.NullString
+	ZPerPass             sql.NullString
+	ScanInterval         sql.NullString
+	Angle                sql.NullString
+	AnglePerPass         sql.NullString
+	CrossHatch           bool
+	Bidir                bool
+	ScanOpt              sql.NullString
+	FloodFill            bool
+	AutoRotate           bool
+	Overscan             sql.NullString
+	OverscanPercent      sql.NullString
+	Frequency            sql.NullString
+	WobbleEnable         sql.NullBool
+	UseDotCorrection     sql.NullBool
+	PerforationMode      bool
+	EnableDotWidthAdjust bool
+	DotWidth             sql.NullString
+	ImageMode            sql.NullString
+	NegativeImage        bool
+	Kerf                 sql.NullString
+	RunBlower            sql.NullBool
+	LayerName            sql.NullString
+	LayerSubname         sql.NullString
+	Priority             sql.NullInt32
+	TabCount             sql.NullInt32
+	TabCountMax          sql.NullInt32
+	Notes                sql.NullString
+	CreatedAt            sql.NullTime
+	UpdatedAt            sql.NullTime
 }
 
 type User struct {
 	ID                  int32
-	Username            string
+	FirstName           string
+	LastName            string
 	Email               string
 	PasswordHash        string
 	DisplayName         sql.NullString

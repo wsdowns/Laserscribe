@@ -6,7 +6,8 @@ USE laserscribe;
 -- =============================================================================
 CREATE TABLE users (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    username VARCHAR(50) NOT NULL UNIQUE,
+    first_name VARCHAR(50) NOT NULL,
+    last_name VARCHAR(50) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     display_name VARCHAR(100),
@@ -99,6 +100,13 @@ CREATE TABLE settings (
     frequency DECIMAL(12,3),
     wobble_enable BOOLEAN,
     use_dot_correction BOOLEAN,
+    perforation_mode BOOLEAN NOT NULL DEFAULT FALSE,
+    enable_dot_width_adjust BOOLEAN NOT NULL DEFAULT FALSE,
+    dot_width DECIMAL(8,4),
+
+    -- Image mode specific
+    image_mode VARCHAR(50),
+    negative_image BOOLEAN NOT NULL DEFAULT FALSE,
 
     -- Cut / Line specific
     kerf DECIMAL(8,4),
@@ -122,10 +130,7 @@ CREATE TABLE settings (
 
     -- Foreign keys
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (material_id) REFERENCES materials(id) ON DELETE CASCADE,
-
-    -- One setting per user per material+operation+laser combo
-    UNIQUE KEY uq_user_material_op_laser (user_id, material_id, operation_type, laser_type, wattage)
+    FOREIGN KEY (material_id) REFERENCES materials(id) ON DELETE CASCADE
 );
 
 -- =============================================================================

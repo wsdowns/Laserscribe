@@ -27,6 +27,7 @@ function SearchPage({ user }) {
   const [selectedSettings, setSelectedSettings] = useState([])
   const [userVotes, setUserVotes] = useState({}) // Track user's votes: { settingId: voteValue }
   const [isContributeModalOpen, setIsContributeModalOpen] = useState(false)
+  const [viewingSetting, setViewingSetting] = useState(null) // Setting being viewed in modal
   const itemsPerPage = 10
 
   const hasFilters = laserType || wattage || keyword
@@ -302,13 +303,15 @@ function SearchPage({ user }) {
               Search Results
             </h2>
             {/* Column Headers */}
-            <div className="flex items-center gap-4 px-4 pb-2 text-sm font-semibold text-ls-accent border-b border-ls-accent/30">
+            <div className="flex items-center gap-6 px-4 pb-2 text-sm font-semibold text-ls-accent border-b border-ls-accent/30">
               <div className="w-5"></div> {/* Checkbox spacing */}
-              <div className="flex-1 grid grid-cols-4 gap-4">
+              <div className="flex-1 grid grid-cols-6 gap-4">
                 <span>Laser</span>
                 <span>Material</span>
-                <span>Operation</span>
-                <span>Settings</span>
+                <span className="text-center">Mode</span>
+                <span>Speed</span>
+                <span>Power</span>
+                <span>Frequency</span>
               </div>
               <div className="w-24 text-center">Votes</div>
             </div>
@@ -325,43 +328,100 @@ function SearchPage({ user }) {
             <>
               <div className="space-y-3 mb-6">
                 {paginatedSettings.map((setting) => {
-                  const materialName = setting.MaterialName || setting.material_name || 'Unknown'
+                  // Truncate material name to 20 characters
+                  let materialName = setting.MaterialName || setting.material_name || 'Unknown'
+                  if (materialName.length > 20) {
+                    materialName = materialName.substring(0, 20) + '...'
+                  }
+
                   const voteScore = parseInt(setting.VoteScore || setting.vote_score || 0)
                   const userVote = userVotes[setting.ID] || 0
 
+                  // Extract ImageMode (handle both object and string formats)
+                  let imageMode = ''
+                  if (setting.ImageMode && typeof setting.ImageMode === 'object' && setting.ImageMode.String) {
+                    imageMode = setting.ImageMode.String
+                  } else if (setting.ImageMode && typeof setting.ImageMode === 'string') {
+                    imageMode = setting.ImageMode
+                  }
+
+                  // Determine mode display (what users see in LightBurn)
+                  let modeDisplay = 'Line' // Default for Cut operation
+                  if (imageMode) {
+                    // Image mode - show dither type
+                    const imageModeDisplay = imageMode === '3dslice' ? '3D Sliced' :
+                                            imageMode.charAt(0).toUpperCase() + imageMode.slice(1)
+                    modeDisplay = `Image - ${imageModeDisplay}`
+                  } else if (setting.OperationType === 'Scan') {
+                    modeDisplay = 'Fill'
+                  } else if (setting.OperationType === 'Cut') {
+                    modeDisplay = 'Line'
+                  }
+
+                  // Extract Frequency (handle both object and string formats)
+                  let frequency = ''
+                  if (setting.Frequency && typeof setting.Frequency === 'object' && setting.Frequency.String) {
+                    frequency = setting.Frequency.String
+                  } else if (setting.Frequency && typeof setting.Frequency === 'string') {
+                    frequency = setting.Frequency
+                  } else if (setting.frequency) {
+                    frequency = setting.frequency
+                  }
+
                   return (
-                    <div key={setting.ID} className="bg-ls-surface border border-ls-accent rounded-lg p-4 flex items-center gap-4">
+                    <div key={setting.ID} className="bg-ls-surface border border-ls-accent rounded-lg p-4 flex items-center gap-6 hover:bg-ls-surface-hover transition-colors cursor-pointer" onClick={() => setViewingSetting(setting)}>
                       {/* Checkbox */}
                       <input
                         type="checkbox"
                         checked={selectedSettings.includes(setting.ID)}
-                        onChange={() => toggleSelectSetting(setting.ID)}
+                        onChange={(e) => {
+                          e.stopPropagation()
+                          toggleSelectSetting(setting.ID)
+                        }}
+                        onClick={(e) => e.stopPropagation()}
                         className="w-5 h-5 rounded border-ls-border bg-ls-surface text-ls-accent focus:ring-2 focus:ring-ls-accent cursor-pointer"
                       />
 
-                      {/* Setting info */}
-                      <div className="flex items-center gap-4 flex-1 min-w-0">
-                        <span className="text-ls-text font-semibold whitespace-nowrap">
+                      {/* Grid layout for all fields */}
+                      <div className="flex-1 grid grid-cols-6 gap-4 items-center">
+                        {/* Laser */}
+                        <div className="text-ls-text font-semibold whitespace-nowrap">
                           {setting.LaserType} {setting.Wattage}W
-                        </span>
-                        <span className="text-ls-text-muted">•</span>
-                        <span className="text-ls-accent font-medium truncate">
+                        </div>
+
+                        {/* Material */}
+                        <div className="text-ls-accent font-medium truncate">
                           {materialName}
-                        </span>
-                        <span className="text-ls-text-muted">•</span>
-                        <span className="text-sm text-ls-text-muted whitespace-nowrap">
-                          {setting.OperationType}
-                        </span>
-                        <span className="text-ls-text-muted">•</span>
-                        <span className="text-sm text-ls-text-muted whitespace-nowrap">
-                          {parseFloat(setting.MaxPower).toFixed(0)}% @ {parseFloat(setting.Speed).toFixed(0)}mm/s
-                        </span>
+                        </div>
+
+                        {/* Mode */}
+                        <div className="text-ls-text-muted font-bold text-sm whitespace-nowrap text-center">
+                          {modeDisplay}
+                        </div>
+
+                        {/* Speed */}
+                        <div className="text-ls-text font-semibold text-sm whitespace-nowrap">
+                          {parseFloat(setting.Speed).toFixed(0)} mm/s
+                        </div>
+
+                        {/* Power */}
+                        <div className="text-ls-text font-semibold text-sm whitespace-nowrap">
+                          {parseFloat(setting.MaxPower).toFixed(0)}%
+                        </div>
+
+                        {/* Frequency */}
+                        <div className="text-ls-text font-semibold text-sm whitespace-nowrap">
+                          {frequency ? `${(parseFloat(frequency) / 1000).toFixed(0)} kHz` : '-'}
+                        </div>
                       </div>
 
                       {/* Vote buttons */}
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                         <button
-                          onClick={() => handleVote(setting.ID, 1)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleVote(setting.ID, 1)
+                          }}
                           className={`p-1 rounded transition-colors cursor-pointer ${
                             userVote === 1
                               ? 'bg-ls-green/20 hover:bg-ls-green/30'
@@ -377,7 +437,10 @@ function SearchPage({ user }) {
                           {voteScore}
                         </span>
                         <button
-                          onClick={() => handleVote(setting.ID, -1)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleVote(setting.ID, -1)
+                          }}
                           className={`p-1 rounded transition-colors cursor-pointer ${
                             userVote === -1
                               ? 'bg-ls-red/20 hover:bg-ls-red/30'
@@ -452,7 +515,224 @@ function SearchPage({ user }) {
         onClose={() => setIsContributeModalOpen(false)}
         user={user}
       />
+
+      {/* View Setting Modal */}
+      {viewingSetting && (
+        <ViewSettingModal setting={viewingSetting} onClose={() => setViewingSetting(null)} />
+      )}
     </div>
+  )
+}
+
+// View Setting Modal Component
+function ViewSettingModal({ setting, onClose }) {
+  // Extract ImageMode for modal
+  let imageMode = ''
+  if (setting.ImageMode && typeof setting.ImageMode === 'object' && setting.ImageMode.String) {
+    imageMode = setting.ImageMode.String
+  } else if (setting.ImageMode && typeof setting.ImageMode === 'string') {
+    imageMode = setting.ImageMode
+  }
+
+  // Determine mode display
+  let modeDisplay = 'Line'
+  if (imageMode) {
+    const imageModeDisplay = imageMode === '3dslice' ? '3D Sliced' :
+                            imageMode.charAt(0).toUpperCase() + imageMode.slice(1)
+    modeDisplay = `Image - ${imageModeDisplay}`
+  } else if (setting.OperationType === 'Scan') {
+    modeDisplay = 'Fill'
+  } else if (setting.OperationType === 'Cut') {
+    modeDisplay = 'Line'
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose}></div>
+      <div className="fixed inset-0 flex items-center justify-center z-50 p-6 pointer-events-none">
+        <div className="bg-ls-darker border border-ls-accent rounded-xl p-6 w-full max-w-2xl pointer-events-auto overflow-y-auto max-h-[90vh]">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-ls-text">Setting Details</h2>
+            <button
+              onClick={onClose}
+              className="text-ls-text-muted hover:text-ls-text transition-colors"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Setting Info */}
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-ls-accent mb-1">Material</label>
+                <div className="text-ls-text">{setting.MaterialName || setting.material_name}</div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-ls-accent mb-1">Mode</label>
+                <div className="text-ls-text font-bold">{modeDisplay}</div>
+              </div>
+            </div>
+
+            {/* Common Fields */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-ls-accent mb-1">Speed (mm/s)</label>
+                <div className="text-ls-text font-semibold">{parseFloat(setting.Speed).toFixed(2)}</div>
+              </div>
+              {/* Frequency */}
+              {(() => {
+                let freq = ''
+                if (setting.Frequency && typeof setting.Frequency === 'object' && setting.Frequency.String) {
+                  freq = setting.Frequency.String
+                } else if (setting.Frequency && typeof setting.Frequency === 'string') {
+                  freq = setting.Frequency
+                } else if (setting.frequency) {
+                  freq = setting.frequency
+                }
+                return freq ? (
+                  <div>
+                    <label className="block text-sm font-medium text-ls-accent mb-1">Frequency (kHz)</label>
+                    <div className="text-ls-text font-semibold">{(parseFloat(freq) / 1000).toFixed(2)}</div>
+                  </div>
+                ) : <div></div>
+              })()}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-ls-accent mb-1">Power (%)</label>
+                <div className="text-ls-text font-semibold">{parseFloat(setting.MaxPower).toFixed(2)}</div>
+              </div>
+            </div>
+
+            {/* Number of Passes */}
+            <div>
+              <label className="block text-sm font-medium text-ls-accent mb-1">Number of Passes</label>
+              <div className="text-ls-text">{setting.NumPasses || 1}</div>
+            </div>
+
+            {/* Fill Mode Specific Fields */}
+            {setting.OperationType === 'Scan' && !imageMode && (
+              <>
+                <div className="border-t border-ls-border pt-4 mt-4">
+                  <h3 className="text-lg font-semibold text-ls-accent mb-3">Fill Settings</h3>
+                </div>
+
+                {setting.ScanInterval && setting.ScanInterval.String && (
+                  <div>
+                    <label className="block text-sm font-medium text-ls-accent mb-1">Scan Interval (mm)</label>
+                    <div className="text-ls-text">{setting.ScanInterval.String}</div>
+                  </div>
+                )}
+
+                {setting.Angle && setting.Angle.String && (
+                  <div>
+                    <label className="block text-sm font-medium text-ls-accent mb-1">Scan Angle (degrees)</label>
+                    <div className="text-ls-text">{setting.Angle.String}</div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-ls-accent mb-1">Bi-Directional Fill</label>
+                    <div className="text-ls-text">{setting.Bidir ? 'Yes' : 'No'}</div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-ls-accent mb-1">Cross-Hatch</label>
+                    <div className="text-ls-text">{setting.CrossHatch ? 'Yes' : 'No'}</div>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Image Mode Specific Fields */}
+            {imageMode && (
+              <>
+                <div className="border-t border-ls-border pt-4 mt-4">
+                  <h3 className="text-lg font-semibold text-ls-accent mb-3">Image Settings</h3>
+                </div>
+
+                {setting.ScanInterval && setting.ScanInterval.String && (
+                  <div>
+                    <label className="block text-sm font-medium text-ls-accent mb-1">Scan Interval (mm)</label>
+                    <div className="text-ls-text">{setting.ScanInterval.String}</div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-4">
+                  {setting.Angle && setting.Angle.String && (
+                    <div>
+                      <label className="block text-sm font-medium text-ls-accent mb-1">Scan Angle (degrees)</label>
+                      <div className="text-ls-text">{setting.Angle.String}</div>
+                    </div>
+                  )}
+
+                  {setting.AnglePerPass && setting.AnglePerPass.String && (
+                    <div>
+                      <label className="block text-sm font-medium text-ls-accent mb-1">Angle Per Pass (degrees)</label>
+                      <div className="text-ls-text">{setting.AnglePerPass.String}</div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-ls-accent mb-1">Bi-Directional</label>
+                    <div className="text-ls-text">{setting.Bidir ? 'Yes' : 'No'}</div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-ls-accent mb-1">Cross-Hatch</label>
+                    <div className="text-ls-text">{setting.CrossHatch ? 'Yes' : 'No'}</div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-ls-accent mb-1">Negative Image</label>
+                    <div className="text-ls-text">{setting.NegativeImage ? 'Yes' : 'No'}</div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-ls-accent mb-1">Use Dot Correction</label>
+                    <div className="text-ls-text">
+                      {setting.UseDotCorrection && setting.UseDotCorrection.Bool ? 'Yes' : 'No'}
+                    </div>
+                  </div>
+                </div>
+
+                {setting.DotWidth && setting.DotWidth.String && (
+                  <div>
+                    <label className="block text-sm font-medium text-ls-accent mb-1">Dot Width (ms)</label>
+                    <div className="text-ls-text">{setting.DotWidth.String}</div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Notes */}
+            {setting.Notes && setting.Notes.String && (
+              <div className="border-t border-ls-border pt-4 mt-4">
+                <label className="block text-sm font-medium text-ls-accent mb-1">Notes</label>
+                <div className="text-ls-text-muted text-sm">{setting.Notes.String}</div>
+              </div>
+            )}
+
+            {/* Close button */}
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={onClose}
+                className="inline-flex items-center justify-center rounded-lg font-semibold transition-all duration-200 h-10 px-6 text-sm bg-ls-accent text-white hover:bg-ls-accent-dark"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
   )
 }
 

@@ -34,6 +34,8 @@ INSERT INTO settings (
     cross_hatch, bidir, scan_opt,
     flood_fill, auto_rotate, overscan, overscan_percent,
     frequency, wobble_enable, use_dot_correction,
+    perforation_mode, dot_width,
+    image_mode, negative_image,
     kerf, run_blower,
     layer_name, layer_subname,
     priority, tab_count, tab_count_max,
@@ -46,6 +48,8 @@ INSERT INTO settings (
     ?, ?, ?,
     ?, ?, ?, ?,
     ?, ?, ?,
+    ?, ?,
+    ?, ?,
     ?, ?,
     ?, ?,
     ?, ?, ?,
@@ -80,6 +84,10 @@ type CreateSettingParams struct {
 	Frequency        sql.NullString
 	WobbleEnable     sql.NullBool
 	UseDotCorrection sql.NullBool
+	PerforationMode  bool
+	DotWidth         sql.NullString
+	ImageMode        sql.NullString
+	NegativeImage    bool
 	Kerf             sql.NullString
 	RunBlower        sql.NullBool
 	LayerName        sql.NullString
@@ -118,6 +126,10 @@ func (q *Queries) CreateSetting(ctx context.Context, arg CreateSettingParams) (s
 		arg.Frequency,
 		arg.WobbleEnable,
 		arg.UseDotCorrection,
+		arg.PerforationMode,
+		arg.DotWidth,
+		arg.ImageMode,
+		arg.NegativeImage,
 		arg.Kerf,
 		arg.RunBlower,
 		arg.LayerName,
@@ -130,12 +142,13 @@ func (q *Queries) CreateSetting(ctx context.Context, arg CreateSettingParams) (s
 }
 
 const createUser = `-- name: CreateUser :execresult
-INSERT INTO users (username, email, password_hash, display_name)
-VALUES (?, ?, ?, ?)
+INSERT INTO users (first_name, last_name, email, password_hash, display_name)
+VALUES (?, ?, ?, ?, ?)
 `
 
 type CreateUserParams struct {
-	Username     string
+	FirstName    string
+	LastName     string
 	Email        string
 	PasswordHash string
 	DisplayName  sql.NullString
@@ -143,7 +156,8 @@ type CreateUserParams struct {
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (sql.Result, error) {
 	return q.db.ExecContext(ctx, createUser,
-		arg.Username,
+		arg.FirstName,
+		arg.LastName,
 		arg.Email,
 		arg.PasswordHash,
 		arg.DisplayName,
@@ -389,9 +403,9 @@ SELECT s.id, s.user_id, s.material_id,
        s.layer_name, s.layer_subname,
        s.priority, s.tab_count, s.tab_count_max,
        s.notes, s.created_at, s.updated_at,
-       u.username, u.display_name,
+       u.first_name, u.last_name, u.display_name,
        mat.name as material_name, mc.name as category_name,
-       COALESCE(SUM(v.value), 0) as vote_score,
+       CAST(COALESCE(SUM(v.value), 0) AS SIGNED) as vote_score,
        COUNT(v.id) as vote_count
 FROM settings s
 JOIN users u ON s.user_id = u.id
@@ -440,11 +454,12 @@ type GetSettingByIDRow struct {
 	Notes            sql.NullString
 	CreatedAt        sql.NullTime
 	UpdatedAt        sql.NullTime
-	Username         string
+	FirstName        string
+	LastName         string
 	DisplayName      sql.NullString
 	MaterialName     string
 	CategoryName     string
-	VoteScore        interface{}
+	VoteScore        int64
 	VoteCount        int64
 }
 
@@ -492,7 +507,8 @@ func (q *Queries) GetSettingByID(ctx context.Context, id int32) (GetSettingByIDR
 		&i.Notes,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.Username,
+		&i.FirstName,
+		&i.LastName,
 		&i.DisplayName,
 		&i.MaterialName,
 		&i.CategoryName,
@@ -507,11 +523,13 @@ SELECT s.id, s.user_id, s.material_id,
        s.laser_type, s.wattage, s.operation_type,
        s.max_power, s.min_power, s.speed,
        s.num_passes, s.scan_interval, s.frequency,
-       s.cross_hatch, s.angle, s.angle_per_pass,
+       s.cross_hatch, s.bidir, s.angle, s.angle_per_pass,
+       s.image_mode, s.negative_image,
+       s.use_dot_correction, s.dot_width,
        s.notes, s.created_at,
-       u.username, u.display_name,
+       u.first_name, u.last_name, u.display_name,
        mat.name as material_name, mc.name as category_name,
-       COALESCE(SUM(v.value), 0) as vote_score,
+       CAST(COALESCE(SUM(v.value), 0) AS SIGNED) as vote_score,
        COUNT(v.id) as vote_count
 FROM settings s
 JOIN users u ON s.user_id = u.id
@@ -524,29 +542,35 @@ LIMIT 20
 `
 
 type GetTopSettingsRow struct {
-	ID            int32
-	UserID        int32
-	MaterialID    int32
-	LaserType     SettingsLaserType
-	Wattage       int32
-	OperationType SettingsOperationType
-	MaxPower      string
-	MinPower      string
-	Speed         string
-	NumPasses     int32
-	ScanInterval  sql.NullString
-	Frequency     sql.NullString
-	CrossHatch    bool
-	Angle         sql.NullString
-	AnglePerPass  sql.NullString
-	Notes         sql.NullString
-	CreatedAt     sql.NullTime
-	Username      string
-	DisplayName   sql.NullString
-	MaterialName  string
-	CategoryName  string
-	VoteScore     interface{}
-	VoteCount     int64
+	ID               int32
+	UserID           int32
+	MaterialID       int32
+	LaserType        SettingsLaserType
+	Wattage          int32
+	OperationType    SettingsOperationType
+	MaxPower         string
+	MinPower         string
+	Speed            string
+	NumPasses        int32
+	ScanInterval     sql.NullString
+	Frequency        sql.NullString
+	CrossHatch       bool
+	Bidir            bool
+	Angle            sql.NullString
+	AnglePerPass     sql.NullString
+	ImageMode        sql.NullString
+	NegativeImage    bool
+	UseDotCorrection sql.NullBool
+	DotWidth         sql.NullString
+	Notes            sql.NullString
+	CreatedAt        sql.NullTime
+	FirstName        string
+	LastName         string
+	DisplayName      sql.NullString
+	MaterialName     string
+	CategoryName     string
+	VoteScore        int64
+	VoteCount        int64
 }
 
 func (q *Queries) GetTopSettings(ctx context.Context) ([]GetTopSettingsRow, error) {
@@ -572,11 +596,17 @@ func (q *Queries) GetTopSettings(ctx context.Context) ([]GetTopSettingsRow, erro
 			&i.ScanInterval,
 			&i.Frequency,
 			&i.CrossHatch,
+			&i.Bidir,
 			&i.Angle,
 			&i.AnglePerPass,
+			&i.ImageMode,
+			&i.NegativeImage,
+			&i.UseDotCorrection,
+			&i.DotWidth,
 			&i.Notes,
 			&i.CreatedAt,
-			&i.Username,
+			&i.FirstName,
+			&i.LastName,
 			&i.DisplayName,
 			&i.MaterialName,
 			&i.CategoryName,
@@ -597,14 +627,15 @@ func (q *Queries) GetTopSettings(ctx context.Context) ([]GetTopSettingsRow, erro
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, username, email, password_hash, display_name, email_verified, created_at
+SELECT id, first_name, last_name, email, password_hash, display_name, email_verified, created_at
 FROM users
 WHERE email = ?
 `
 
 type GetUserByEmailRow struct {
 	ID            int32
-	Username      string
+	FirstName     string
+	LastName      string
 	Email         string
 	PasswordHash  string
 	DisplayName   sql.NullString
@@ -617,7 +648,8 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEm
 	var i GetUserByEmailRow
 	err := row.Scan(
 		&i.ID,
-		&i.Username,
+		&i.FirstName,
+		&i.LastName,
 		&i.Email,
 		&i.PasswordHash,
 		&i.DisplayName,
@@ -629,14 +661,15 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEm
 
 const getUserByID = `-- name: GetUserByID :one
 
-SELECT id, username, email, password_hash, display_name, email_verified, created_at
+SELECT id, first_name, last_name, email, password_hash, display_name, email_verified, created_at
 FROM users
 WHERE id = ?
 `
 
 type GetUserByIDRow struct {
 	ID            int32
-	Username      string
+	FirstName     string
+	LastName      string
 	Email         string
 	PasswordHash  string
 	DisplayName   sql.NullString
@@ -652,38 +685,8 @@ func (q *Queries) GetUserByID(ctx context.Context, id int32) (GetUserByIDRow, er
 	var i GetUserByIDRow
 	err := row.Scan(
 		&i.ID,
-		&i.Username,
-		&i.Email,
-		&i.PasswordHash,
-		&i.DisplayName,
-		&i.EmailVerified,
-		&i.CreatedAt,
-	)
-	return i, err
-}
-
-const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, email, password_hash, display_name, email_verified, created_at
-FROM users
-WHERE username = ?
-`
-
-type GetUserByUsernameRow struct {
-	ID            int32
-	Username      string
-	Email         string
-	PasswordHash  string
-	DisplayName   sql.NullString
-	EmailVerified bool
-	CreatedAt     sql.NullTime
-}
-
-func (q *Queries) GetUserByUsername(ctx context.Context, username string) (GetUserByUsernameRow, error) {
-	row := q.db.QueryRowContext(ctx, getUserByUsername, username)
-	var i GetUserByUsernameRow
-	err := row.Scan(
-		&i.ID,
-		&i.Username,
+		&i.FirstName,
+		&i.LastName,
 		&i.Email,
 		&i.PasswordHash,
 		&i.DisplayName,
@@ -694,14 +697,15 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (GetUs
 }
 
 const getUserByVerificationToken = `-- name: GetUserByVerificationToken :one
-SELECT id, username, email, email_verified, verification_expires
+SELECT id, first_name, last_name, email, email_verified, verification_expires
 FROM users
 WHERE verification_token = ?
 `
 
 type GetUserByVerificationTokenRow struct {
 	ID                  int32
-	Username            string
+	FirstName           string
+	LastName            string
 	Email               string
 	EmailVerified       bool
 	VerificationExpires sql.NullTime
@@ -712,7 +716,8 @@ func (q *Queries) GetUserByVerificationToken(ctx context.Context, verificationTo
 	var i GetUserByVerificationTokenRow
 	err := row.Scan(
 		&i.ID,
-		&i.Username,
+		&i.FirstName,
+		&i.LastName,
 		&i.Email,
 		&i.EmailVerified,
 		&i.VerificationExpires,
@@ -725,10 +730,13 @@ SELECT s.id, s.user_id, s.material_id,
        s.laser_type, s.wattage, s.operation_type,
        s.max_power, s.min_power, s.speed,
        s.num_passes, s.scan_interval, s.frequency,
-       s.cross_hatch, s.angle, s.angle_per_pass,
+       s.cross_hatch, s.bidir, s.angle, s.angle_per_pass,
+       s.flood_fill, s.auto_rotate, s.wobble_enable,
+       s.perforation_mode, s.use_dot_correction, s.dot_width,
+       s.image_mode, s.negative_image,
        s.notes, s.created_at, s.updated_at,
        mat.name as material_name, mc.name as category_name,
-       COALESCE(SUM(v.value), 0) as vote_score,
+       CAST(COALESCE(SUM(v.value), 0) AS SIGNED) as vote_score,
        COUNT(v.id) as vote_count
 FROM settings s
 JOIN materials mat ON s.material_id = mat.id
@@ -740,28 +748,37 @@ ORDER BY s.created_at DESC
 `
 
 type GetUserSettingsRow struct {
-	ID            int32
-	UserID        int32
-	MaterialID    int32
-	LaserType     SettingsLaserType
-	Wattage       int32
-	OperationType SettingsOperationType
-	MaxPower      string
-	MinPower      string
-	Speed         string
-	NumPasses     int32
-	ScanInterval  sql.NullString
-	Frequency     sql.NullString
-	CrossHatch    bool
-	Angle         sql.NullString
-	AnglePerPass  sql.NullString
-	Notes         sql.NullString
-	CreatedAt     sql.NullTime
-	UpdatedAt     sql.NullTime
-	MaterialName  string
-	CategoryName  string
-	VoteScore     interface{}
-	VoteCount     int64
+	ID               int32
+	UserID           int32
+	MaterialID       int32
+	LaserType        SettingsLaserType
+	Wattage          int32
+	OperationType    SettingsOperationType
+	MaxPower         string
+	MinPower         string
+	Speed            string
+	NumPasses        int32
+	ScanInterval     sql.NullString
+	Frequency        sql.NullString
+	CrossHatch       bool
+	Bidir            bool
+	Angle            sql.NullString
+	AnglePerPass     sql.NullString
+	FloodFill        bool
+	AutoRotate       bool
+	WobbleEnable     sql.NullBool
+	PerforationMode  bool
+	UseDotCorrection sql.NullBool
+	DotWidth         sql.NullString
+	ImageMode        sql.NullString
+	NegativeImage    bool
+	Notes            sql.NullString
+	CreatedAt        sql.NullTime
+	UpdatedAt        sql.NullTime
+	MaterialName     string
+	CategoryName     string
+	VoteScore        int64
+	VoteCount        int64
 }
 
 func (q *Queries) GetUserSettings(ctx context.Context, userID int32) ([]GetUserSettingsRow, error) {
@@ -787,8 +804,17 @@ func (q *Queries) GetUserSettings(ctx context.Context, userID int32) ([]GetUserS
 			&i.ScanInterval,
 			&i.Frequency,
 			&i.CrossHatch,
+			&i.Bidir,
 			&i.Angle,
 			&i.AnglePerPass,
+			&i.FloodFill,
+			&i.AutoRotate,
+			&i.WobbleEnable,
+			&i.PerforationMode,
+			&i.UseDotCorrection,
+			&i.DotWidth,
+			&i.ImageMode,
+			&i.NegativeImage,
 			&i.Notes,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -970,11 +996,13 @@ SELECT s.id, s.user_id, s.material_id,
        s.laser_type, s.wattage, s.operation_type,
        s.max_power, s.min_power, s.speed,
        s.num_passes, s.scan_interval, s.frequency,
-       s.cross_hatch, s.angle, s.angle_per_pass,
+       s.cross_hatch, s.bidir, s.angle, s.angle_per_pass,
+       s.image_mode, s.negative_image,
+       s.use_dot_correction, s.dot_width,
        s.notes, s.created_at,
-       u.username, u.display_name,
+       u.first_name, u.last_name, u.display_name,
        mat.name as material_name, mc.name as category_name,
-       COALESCE(SUM(v.value), 0) as vote_score,
+       CAST(COALESCE(SUM(v.value), 0) AS SIGNED) as vote_score,
        COUNT(v.id) as vote_count
 FROM settings s
 JOIN users u ON s.user_id = u.id
@@ -1002,29 +1030,35 @@ type SearchSettingsParams struct {
 }
 
 type SearchSettingsRow struct {
-	ID            int32
-	UserID        int32
-	MaterialID    int32
-	LaserType     SettingsLaserType
-	Wattage       int32
-	OperationType SettingsOperationType
-	MaxPower      string
-	MinPower      string
-	Speed         string
-	NumPasses     int32
-	ScanInterval  sql.NullString
-	Frequency     sql.NullString
-	CrossHatch    bool
-	Angle         sql.NullString
-	AnglePerPass  sql.NullString
-	Notes         sql.NullString
-	CreatedAt     sql.NullTime
-	Username      string
-	DisplayName   sql.NullString
-	MaterialName  string
-	CategoryName  string
-	VoteScore     interface{}
-	VoteCount     int64
+	ID               int32
+	UserID           int32
+	MaterialID       int32
+	LaserType        SettingsLaserType
+	Wattage          int32
+	OperationType    SettingsOperationType
+	MaxPower         string
+	MinPower         string
+	Speed            string
+	NumPasses        int32
+	ScanInterval     sql.NullString
+	Frequency        sql.NullString
+	CrossHatch       bool
+	Bidir            bool
+	Angle            sql.NullString
+	AnglePerPass     sql.NullString
+	ImageMode        sql.NullString
+	NegativeImage    bool
+	UseDotCorrection sql.NullBool
+	DotWidth         sql.NullString
+	Notes            sql.NullString
+	CreatedAt        sql.NullTime
+	FirstName        string
+	LastName         string
+	DisplayName      sql.NullString
+	MaterialName     string
+	CategoryName     string
+	VoteScore        int64
+	VoteCount        int64
 }
 
 func (q *Queries) SearchSettings(ctx context.Context, arg SearchSettingsParams) ([]SearchSettingsRow, error) {
@@ -1063,11 +1097,17 @@ func (q *Queries) SearchSettings(ctx context.Context, arg SearchSettingsParams) 
 			&i.ScanInterval,
 			&i.Frequency,
 			&i.CrossHatch,
+			&i.Bidir,
 			&i.Angle,
 			&i.AnglePerPass,
+			&i.ImageMode,
+			&i.NegativeImage,
+			&i.UseDotCorrection,
+			&i.DotWidth,
 			&i.Notes,
 			&i.CreatedAt,
-			&i.Username,
+			&i.FirstName,
+			&i.LastName,
 			&i.DisplayName,
 			&i.MaterialName,
 			&i.CategoryName,
@@ -1111,6 +1151,8 @@ UPDATE settings SET
     cross_hatch = ?, bidir = ?, scan_opt = ?,
     flood_fill = ?, auto_rotate = ?, overscan = ?, overscan_percent = ?,
     frequency = ?, wobble_enable = ?, use_dot_correction = ?,
+    perforation_mode = ?, dot_width = ?,
+    image_mode = ?, negative_image = ?,
     kerf = ?, run_blower = ?,
     layer_name = ?, layer_subname = ?,
     priority = ?, tab_count = ?, tab_count_max = ?,
@@ -1140,6 +1182,10 @@ type UpdateSettingParams struct {
 	Frequency        sql.NullString
 	WobbleEnable     sql.NullBool
 	UseDotCorrection sql.NullBool
+	PerforationMode  bool
+	DotWidth         sql.NullString
+	ImageMode        sql.NullString
+	NegativeImage    bool
 	Kerf             sql.NullString
 	RunBlower        sql.NullBool
 	LayerName        sql.NullString
@@ -1175,6 +1221,10 @@ func (q *Queries) UpdateSetting(ctx context.Context, arg UpdateSettingParams) er
 		arg.Frequency,
 		arg.WobbleEnable,
 		arg.UseDotCorrection,
+		arg.PerforationMode,
+		arg.DotWidth,
+		arg.ImageMode,
+		arg.NegativeImage,
 		arg.Kerf,
 		arg.RunBlower,
 		arg.LayerName,

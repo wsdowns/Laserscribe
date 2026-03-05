@@ -98,7 +98,7 @@ function Sidebar({ user, onLogout }) {
               <div className="space-y-2">
                 <div className="px-4 py-2">
                   <p className="text-base font-medium text-ls-text">{user.displayName || user.username}</p>
-                  <p className="text-sm text-ls-text-muted">@{user.username}</p>
+                  <p className="text-sm text-ls-text-muted">{user.username}</p>
                 </div>
                 <button
                   onClick={onLogout}
