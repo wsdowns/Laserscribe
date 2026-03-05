@@ -1,0 +1,41 @@
+name: Debug SMTP Directly
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+
+      - name: Add server to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.LIGHTSAIL_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Debug SMTP
+        env:
+          HOST: ${{ secrets.LIGHTSAIL_HOST }}
+          USER: ${{ secrets.LIGHTSAIL_USER }}
+        run: |
+          ssh $USER@$HOST << 'EOF'
+            echo "=== Checking .env file ==="
+            cat ~/.env
+            echo ""
+            echo "=== Testing SMTP connection with telnet ==="
+            timeout 5 telnet mail.smtp2go.com 587 || echo "Connection failed or timeout"
+            echo ""
+            echo "=== Checking if port 587 is reachable ==="
+            timeout 5 nc -zv mail.smtp2go.com 587 2>&1 || echo "Port 587 not reachable"
+            echo ""
+            echo "=== Recent backend logs ==="
+            sudo journalctl -u laserscribe -n 20 --no-pager | grep -i "email\|smtp\|error" || echo "No recent email errors"
+            echo ""
+            echo "=== Testing DNS resolution ==="
+            nslookup mail.smtp2go.com || echo "DNS lookup failed"
+          EOF
