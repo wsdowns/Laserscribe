@@ -1,6 +1,6 @@
 import SettingCard from './SettingCard'
 
-function SettingsTable({ settings, user, onVote, isLoading }) {
+function SettingsTable({ settings, user, onVote, isLoading, showAttribution = true, onDelete }) {
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -42,6 +42,8 @@ function SettingsTable({ settings, user, onVote, isLoading }) {
           setting={setting}
           user={user}
           onVote={onVote}
+          showAttribution={showAttribution}
+          onDelete={onDelete}
         />
       ))}
     </div>
