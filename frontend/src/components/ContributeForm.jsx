@@ -139,9 +139,9 @@ function ContributeForm({ user, initialMode = 'manual' }) {
     data.useDotCorrection = form.useDotCorrection
     if (form.imageMode) data.imageMode = form.imageMode
     if (form.dotWidth) data.dotWidth = form.dotWidth
-    if (form.scanInterval) data.scanInterval = parseFloat(form.scanInterval)
-    if (form.angle) data.angle = parseFloat(form.angle)
-    if (form.anglePerPass) data.anglePerPass = parseFloat(form.anglePerPass)
+    if (form.scanInterval) data.scanInterval = form.scanInterval
+    if (form.angle) data.angle = form.angle
+    if (form.anglePerPass) data.anglePerPass = form.anglePerPass
 
     mutation.mutate(data)
   }
