@@ -2,11 +2,6 @@ name: Check Database Constraints
 
 on:
   workflow_dispatch:
-    inputs:
-      db_password:
-        description: 'MySQL root password'
-        required: true
-        type: string
 
 jobs:
   check:
@@ -27,15 +22,14 @@ jobs:
         env:
           HOST: ${{ secrets.LIGHTSAIL_HOST }}
           USER: ${{ secrets.LIGHTSAIL_USER }}
-          DB_PASSWORD: ${{ inputs.db_password }}
         run: |
           ssh $USER@$HOST << EOF
             echo "=== Settings table indexes and constraints ==="
-            mysql -u root -p'$DB_PASSWORD' -e "SHOW INDEX FROM laserscribe.settings;"
+            sudo mysql -u root -e "SHOW INDEX FROM laserscribe.settings;"
 
             echo ""
             echo "=== Check for unique constraint ==="
-            mysql -u root -p'$DB_PASSWORD' -e "
+            sudo mysql -u root -e "
               SELECT INDEX_NAME, NON_UNIQUE, COLUMN_NAME
               FROM INFORMATION_SCHEMA.STATISTICS
               WHERE TABLE_SCHEMA = 'laserscribe'
@@ -45,11 +39,11 @@ jobs:
 
             echo ""
             echo "=== Count of settings in database ==="
-            mysql -u root -p'$DB_PASSWORD' -e "SELECT COUNT(*) as total_settings FROM laserscribe.settings;"
+            sudo mysql -u root -e "SELECT COUNT(*) as total_settings FROM laserscribe.settings;"
 
             echo ""
             echo "=== Settings by user ==="
-            mysql -u root -p'$DB_PASSWORD' -e "
+            sudo mysql -u root -e "
               SELECT u.email, COUNT(s.id) as setting_count
               FROM laserscribe.users u
               LEFT JOIN laserscribe.settings s ON u.id = s.user_id
