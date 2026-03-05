@@ -1,0 +1,59 @@
+name: Fix Systemd Environment
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix-env:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+
+      - name: Add server to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.LIGHTSAIL_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Update systemd service with environment variables
+        env:
+          HOST: ${{ secrets.LIGHTSAIL_HOST }}
+          USER: ${{ secrets.LIGHTSAIL_USER }}
+          DEPLOY_PATH: ${{ secrets.LIGHTSAIL_DEPLOY_PATH }}
+          SMTP2GO_API_KEY: ${{ secrets.SMTP2GO_API_KEY }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
+        run: |
+          ssh $USER@$HOST << EOF
+            # Update systemd service file to include environment variables
+            sudo bash -c 'cat > /etc/systemd/system/laserscribe.service << EOL
+[Unit]
+Description=Laserscribe API Server
+After=network.target mysql.service
+
+[Service]
+Type=simple
+User=$USER
+WorkingDirectory=$DEPLOY_PATH
+ExecStart=$DEPLOY_PATH/laserscribe-api
+Restart=always
+RestartSec=5
+
+Environment="JWT_SECRET=$JWT_SECRET"
+Environment="SMTP2GO_API_KEY=$SMTP2GO_API_KEY"
+Environment="SMTP_FROM=$SMTP_FROM"
+Environment="APP_BASE_URL=$APP_BASE_URL"
+
+[Install]
+WantedBy=multi-user.target
+EOL'
+
+            # Reload systemd and restart service
+            sudo systemctl daemon-reload
+            sudo systemctl restart laserscribe
+            sudo systemctl status laserscribe --no-pager
+          EOF
