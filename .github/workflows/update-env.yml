@@ -22,10 +22,7 @@ jobs:
         env:
           HOST: ${{ secrets.LIGHTSAIL_HOST }}
           USER: ${{ secrets.LIGHTSAIL_USER }}
-          SMTP_HOST: ${{ secrets.SMTP_HOST }}
-          SMTP_PORT: ${{ secrets.SMTP_PORT }}
-          SMTP_USER: ${{ secrets.SMTP_USER }}
-          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          SMTP2GO_API_KEY: ${{ secrets.SMTP2GO_API_KEY }}
           SMTP_FROM: ${{ secrets.SMTP_FROM }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
@@ -34,11 +31,8 @@ jobs:
           # JWT
           JWT_SECRET=$JWT_SECRET
 
-          # SMTP (email verification)
-          SMTP_HOST=$SMTP_HOST
-          SMTP_PORT=$SMTP_PORT
-          SMTP_USER=$SMTP_USER
-          SMTP_PASS=$SMTP_PASS
+          # Email (SMTP2GO API)
+          SMTP2GO_API_KEY=$SMTP2GO_API_KEY
           SMTP_FROM=$SMTP_FROM
 
           # App

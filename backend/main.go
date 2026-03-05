@@ -1,17 +1,18 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
-	"crypto/tls"
 	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"io"
 	"laserscribe/backend/db"
 	"log"
 	"net/http"
-	"net/smtp"
 	"os"
 	"strconv"
 	"strings"
@@ -462,76 +463,51 @@ func sendVerificationEmail(c *gin.Context, userID int32, email string) error {
 	}
 	verifyURL := fmt.Sprintf("%s/api/auth/verify?token=%s", baseURL, token)
 
-	// Send via SMTP if configured, otherwise log to console
-	smtpHost := os.Getenv("SMTP_HOST")
-	if smtpHost == "" {
+	// Send via SMTP2GO API if configured, otherwise log to console
+	apiKey := os.Getenv("SMTP2GO_API_KEY")
+	if apiKey == "" {
 		log.Printf("VERIFICATION EMAIL for %s: %s", email, verifyURL)
 		return nil
 	}
 
-	smtpPort := os.Getenv("SMTP_PORT")
-	if smtpPort == "" {
-		smtpPort = "587" // Use STARTTLS port instead of 2525
-	}
-	smtpUser := os.Getenv("SMTP_USER")
-	smtpPass := os.Getenv("SMTP_PASS")
 	smtpFrom := os.Getenv("SMTP_FROM")
 	if smtpFrom == "" {
-		smtpFrom = "scott@laserscribed.com"
+		smtpFrom = "info@laserscribed.com"
 	}
 
 	subject := "Verify your Laserscribe account"
-	body := fmt.Sprintf("Welcome to Laserscribe!\n\nPlease verify your email by clicking the link below:\n\n%s\n\nThis link expires in 24 hours.\n\nIf you didn't create this account, you can ignore this email.", verifyURL)
+	textBody := fmt.Sprintf("Welcome to Laserscribe!\n\nPlease verify your email by clicking the link below:\n\n%s\n\nThis link expires in 24 hours.\n\nIf you didn't create this account, you can ignore this email.", verifyURL)
 
-	msg := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n%s",
-		smtpFrom, email, subject, body)
+	// Use SMTP2GO HTTP API
+	payload := map[string]interface{}{
+		"api_key": apiKey,
+		"to":      []string{email},
+		"sender":  smtpFrom,
+		"subject": subject,
+		"text_body": textBody,
+	}
 
-	// Use TLS for SMTP2GO
-	auth := smtp.PlainAuth("", smtpUser, smtpPass, smtpHost)
-
-	// Connect with STARTTLS
-	addr := smtpHost + ":" + smtpPort
-	client, err := smtp.Dial(addr)
+	jsonData, err := json.Marshal(payload)
 	if err != nil {
-		return fmt.Errorf("failed to connect to SMTP server: %w", err)
-	}
-	defer client.Close()
-
-	// Start TLS
-	if err = client.StartTLS(&tls.Config{ServerName: smtpHost}); err != nil {
-		return fmt.Errorf("failed to start TLS: %w", err)
+		return fmt.Errorf("failed to marshal JSON: %w", err)
 	}
 
-	// Authenticate
-	if err = client.Auth(auth); err != nil {
-		return fmt.Errorf("failed to authenticate: %w", err)
-	}
-
-	// Set sender and recipient
-	if err = client.Mail(smtpFrom); err != nil {
-		return fmt.Errorf("failed to set sender: %w", err)
-	}
-	if err = client.Rcpt(email); err != nil {
-		return fmt.Errorf("failed to set recipient: %w", err)
-	}
-
-	// Send the email body
-	w, err := client.Data()
+	req, err := http.NewRequest("POST", "https://api.smtp2go.com/v3/email/send", bytes.NewBuffer(jsonData))
 	if err != nil {
-		return fmt.Errorf("failed to get data writer: %w", err)
+		return fmt.Errorf("failed to create request: %w", err)
 	}
-	_, err = w.Write([]byte(msg))
-	if err != nil {
-		return fmt.Errorf("failed to write message: %w", err)
-	}
-	err = w.Close()
-	if err != nil {
-		return fmt.Errorf("failed to close writer: %w", err)
-	}
+	req.Header.Set("Content-Type", "application/json")
 
-	err = client.Quit()
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to quit: %w", err)
+		return fmt.Errorf("failed to send email via API: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("SMTP2GO API error (status %d): %s", resp.StatusCode, string(body))
 	}
 
 	log.Printf("Verification email sent to %s", email)
