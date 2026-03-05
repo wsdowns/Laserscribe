@@ -24,7 +24,8 @@ function SearchPage({ user }) {
   const [currentPage, setCurrentPage] = useState(1)
   const [settings, setSettings] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [selectedSettings, setSelectedSettings] = useState([])
+  const [selectedSettings, setSelectedSettings] = useState([]) // Checkboxes - ready to add
+  const [cartItems, setCartItems] = useState([]) // Actually in cart
   const [userVotes, setUserVotes] = useState({}) // Track user's votes: { settingId: voteValue }
   const [isContributeModalOpen, setIsContributeModalOpen] = useState(false)
   const [viewingSetting, setViewingSetting] = useState(null) // Setting being viewed in modal
@@ -136,8 +137,22 @@ function SearchPage({ user }) {
     )
   }
 
+  const handleAddToCart = () => {
+    // Get the actual setting objects for selected IDs
+    const itemsToAdd = settings?.filter(s => selectedSettings.includes(s.ID)) || []
+
+    // Add to cart (avoid duplicates)
+    setCartItems(prev => {
+      const existingIds = new Set(prev.map(item => item.ID))
+      const newItems = itemsToAdd.filter(item => !existingIds.has(item.ID))
+      return [...prev, ...newItems]
+    })
+
+    // Clear checkboxes after adding
+    setSelectedSettings([])
+  }
+
   const handleGoToCart = () => {
-    const cartItems = settings?.filter(s => selectedSettings.includes(s.ID)) || []
     navigate('/cart', { state: { cartItems } })
   }
 
@@ -150,15 +165,20 @@ function SearchPage({ user }) {
       <div className="max-w-7xl mx-auto px-6 py-8">
       {/* Cart Icon - Top Right */}
       <div className="flex justify-end mb-4">
-        <div onClick={handleGoToCart} className="relative cursor-pointer group">
-          <svg className="w-8 h-8 text-ls-accent group-hover:text-ls-accent-dark transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-          </svg>
-          {selectedSettings.length > 0 && (
-            <div className="absolute -top-2 -right-2 bg-ls-red text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center border-2 border-ls-dark">
-              {selectedSettings.length}
-            </div>
-          )}
+        <div onClick={handleGoToCart} className="cursor-pointer group flex items-center gap-2">
+          <span className="text-sm font-medium text-ls-accent group-hover:text-ls-accent-dark transition-colors">
+            Checkout Now
+          </span>
+          <div className="relative">
+            <svg className="w-8 h-8 text-ls-accent group-hover:text-ls-accent-dark transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            {cartItems.length > 0 && (
+              <div className="absolute -top-2 -right-2 bg-ls-red text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center border-2 border-ls-dark">
+                {cartItems.length}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -573,10 +593,7 @@ function SearchPage({ user }) {
               {selectedSettings.length > 0 && (
                 <div className="flex justify-end mt-6">
                   <button
-                    onClick={() => {
-                      // TODO: Implement cart functionality
-                      alert(`Adding ${selectedSettings.length} settings to cart`)
-                    }}
+                    onClick={handleAddToCart}
                     className="inline-flex items-center justify-center rounded-lg font-semibold transition-all duration-200 h-10 px-6 text-sm bg-ls-accent text-white hover:bg-ls-accent-dark shadow-lg"
                   >
                     <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
