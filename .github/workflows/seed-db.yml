@@ -1,0 +1,38 @@
+name: Seed Database
+
+on:
+  workflow_dispatch:
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+
+      - name: Add server to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.LIGHTSAIL_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Seed database
+        env:
+          HOST: ${{ secrets.LIGHTSAIL_HOST }}
+          USER: ${{ secrets.LIGHTSAIL_USER }}
+        run: |
+          # Copy seed script
+          scp backend/seed.sql $USER@$HOST:~/seed.sql
+
+          # Run seed script
+          ssh $USER@$HOST << EOF
+            echo "Seeding database with material categories..."
+            sudo mysql -u root < ~/seed.sql
+            echo ""
+            echo "Seed completed!"
+          EOF
