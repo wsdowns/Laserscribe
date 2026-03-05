@@ -62,8 +62,9 @@ jobs:
         run: |
           # Deploy backend
           ssh $USER@$HOST "mkdir -p $DEPLOY_PATH"
-          scp backend/laserscribe-api $USER@$HOST:$DEPLOY_PATH/
-          scp backend/schema.sql $USER@$HOST:$DEPLOY_PATH/
+          scp backend/laserscribe-api $USER@$HOST:~/
+          scp backend/schema.sql $USER@$HOST:~/
+          ssh $USER@$HOST "mv ~/laserscribe-api $DEPLOY_PATH/ && mv ~/schema.sql $DEPLOY_PATH/"
 
           # Deploy frontend
           ssh $USER@$HOST "mkdir -p /tmp/frontend-dist && sudo mkdir -p /var/www/html.new"
