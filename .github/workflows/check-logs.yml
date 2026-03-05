@@ -1,0 +1,37 @@
+name: Check Backend Logs
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-logs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+
+      - name: Add server to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.LIGHTSAIL_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Check SMTP configuration
+        env:
+          HOST: ${{ secrets.LIGHTSAIL_HOST }}
+          USER: ${{ secrets.LIGHTSAIL_USER }}
+        run: |
+          ssh $USER@$HOST << 'EOF'
+            echo "=== Checking .env file ==="
+            if [ -f ~/.env ]; then
+              echo ".env exists"
+              grep "SMTP" ~/.env || echo "No SMTP variables in .env"
+            else
+              echo ".env not found!"
+            fi
+            echo ""
+            echo "=== Backend logs (last 100 lines) ==="
+            sudo journalctl -u laserscribe -n 100 --no-pager
+          EOF
