@@ -66,14 +66,14 @@ jobs:
           scp backend/schema.sql $USER@$HOST:$DEPLOY_PATH/
 
           # Deploy frontend
-          ssh $USER@$HOST "sudo mkdir -p /var/www/html.new"
+          ssh $USER@$HOST "mkdir -p /tmp/frontend-dist && sudo mkdir -p /var/www/html.new"
           scp -r frontend/dist/* $USER@$HOST:/tmp/frontend-dist/
           ssh $USER@$HOST "sudo rm -rf /var/www/html.new/* && sudo mv /tmp/frontend-dist/* /var/www/html.new/"
           ssh $USER@$HOST "sudo chown -R www-data:www-data /var/www/html.new && sudo chmod -R 755 /var/www/html.new"
           ssh $USER@$HOST "sudo mv /var/www/html /var/www/html.old && sudo mv /var/www/html.new /var/www/html && sudo rm -rf /var/www/html.old"
 
           # Restart backend service
-          ssh $USER@$HOST << 'EOF'
+          ssh $USER@$HOST << EOF
             cd $DEPLOY_PATH
             chmod +x laserscribe-api
             sudo systemctl restart laserscribe
