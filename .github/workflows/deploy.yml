@@ -59,11 +59,35 @@ jobs:
           HOST: ${{ secrets.LIGHTSAIL_HOST }}
           USER: ${{ secrets.LIGHTSAIL_USER }}
           DEPLOY_PATH: ${{ secrets.LIGHTSAIL_DEPLOY_PATH }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
         run: |
+          # Create .env file
+          cat > .env.tmp << EOF
+          # JWT
+          JWT_SECRET=$JWT_SECRET
+
+          # SMTP (email verification)
+          SMTP_HOST=$SMTP_HOST
+          SMTP_PORT=$SMTP_PORT
+          SMTP_USER=$SMTP_USER
+          SMTP_PASS=$SMTP_PASS
+          SMTP_FROM=$SMTP_FROM
+
+          # App
+          APP_BASE_URL=$APP_BASE_URL
+          EOF
+
           # Deploy backend
           ssh $USER@$HOST "mkdir -p $DEPLOY_PATH"
           scp backend/laserscribe-api $USER@$HOST:~/
           scp backend/schema.sql $USER@$HOST:~/
+          scp .env.tmp $USER@$HOST:~/.env
           ssh $USER@$HOST "mv ~/laserscribe-api $DEPLOY_PATH/ && mv ~/schema.sql $DEPLOY_PATH/"
 
           # Deploy frontend
