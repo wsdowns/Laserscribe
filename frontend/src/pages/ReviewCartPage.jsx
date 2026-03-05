@@ -5,9 +5,35 @@ function ReviewCartPage() {
   const navigate = useNavigate()
   const cartItems = location.state?.cartItems || []
 
-  const handleExportCLB = () => {
-    // TODO: Implement CLB export
-    alert('Export to LightBurn Library functionality coming soon!')
+  const handleExportCLB = async () => {
+    try {
+      // Extract setting IDs from cart items
+      const settingIds = cartItems.map(item => item.ID).join(',')
+
+      // Call export endpoint with setting IDs
+      const response = await fetch(`/api/settings/export?ids=${settingIds}`, {
+        method: 'GET',
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        throw new Error('Export failed')
+      }
+
+      // Create download link
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'LASERSCRIBED.CLB'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      alert('Failed to export CLB file. Please try again.')
+      console.error('Export error:', error)
+    }
   }
 
   if (cartItems.length === 0) {
@@ -50,7 +76,42 @@ function ReviewCartPage() {
 
         <div className="space-y-3">
           {cartItems.map((setting) => {
-            const materialName = setting.MaterialName || setting.material_name || 'Unknown'
+            // Truncate material name to 20 characters
+            let materialName = setting.MaterialName || setting.material_name || 'Unknown'
+            if (materialName.length > 20) {
+              materialName = materialName.substring(0, 20) + '...'
+            }
+
+            // Extract ImageMode (handle both object and string formats)
+            let imageMode = ''
+            if (setting.ImageMode && typeof setting.ImageMode === 'object' && setting.ImageMode.String) {
+              imageMode = setting.ImageMode.String
+            } else if (setting.ImageMode && typeof setting.ImageMode === 'string') {
+              imageMode = setting.ImageMode
+            }
+
+            // Determine mode display (what users see in LightBurn)
+            let modeDisplay = 'Line' // Default for Cut operation
+            if (imageMode) {
+              // Image mode - show dither type
+              const imageModeDisplay = imageMode === '3dslice' ? '3D Sliced' :
+                                      imageMode.charAt(0).toUpperCase() + imageMode.slice(1)
+              modeDisplay = `Image - ${imageModeDisplay}`
+            } else if (setting.OperationType === 'Scan') {
+              modeDisplay = 'Fill'
+            } else if (setting.OperationType === 'Cut') {
+              modeDisplay = 'Line'
+            }
+
+            // Extract Frequency (handle both object and string formats)
+            let frequency = ''
+            if (setting.Frequency && typeof setting.Frequency === 'object' && setting.Frequency.String) {
+              frequency = setting.Frequency.String
+            } else if (setting.Frequency && typeof setting.Frequency === 'string') {
+              frequency = setting.Frequency
+            } else if (setting.frequency) {
+              frequency = setting.frequency
+            }
 
             return (
               <div key={setting.ID} className="bg-ls-darker border border-ls-border rounded-lg p-4 flex items-center gap-4">
@@ -64,8 +125,24 @@ function ReviewCartPage() {
                       {materialName}
                     </span>
                   </div>
-                  <div className="text-sm text-ls-text-muted">
-                    {setting.OperationType} • {parseFloat(setting.MaxPower).toFixed(0)}% @ {parseFloat(setting.Speed).toFixed(0)}mm/s
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-ls-text-muted">{modeDisplay}</span>
+                    <span className="text-ls-text-muted">•</span>
+                    <span className="text-ls-text font-semibold">
+                      {parseFloat(setting.Speed).toFixed(0)} mm/s
+                    </span>
+                    <span className="text-ls-text-muted">•</span>
+                    <span className="text-ls-text font-semibold">
+                      {parseFloat(setting.MaxPower).toFixed(0)}%
+                    </span>
+                    {frequency && (
+                      <>
+                        <span className="text-ls-text-muted">•</span>
+                        <span className="text-ls-text font-semibold">
+                          {(parseFloat(frequency) / 1000).toFixed(0)} kHz
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
                 <button

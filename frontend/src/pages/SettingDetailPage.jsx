@@ -19,10 +19,8 @@ function SettingDetailPage({ user }) {
     }
     fetch(`/api/settings/${id}/vote`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${user.token}`,
-      },
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ value }),
     })
   }

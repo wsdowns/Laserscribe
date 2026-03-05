@@ -1,10 +1,13 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Select, SelectItem } from './ui/Select'
 import Input from './ui/Input'
 import Button from './ui/Button'
+import Card from './ui/Card'
 
 function ContributeForm({ user, initialMode = 'manual' }) {
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [mode, setMode] = useState(initialMode) // 'manual' or 'import'
   const [form, setForm] = useState({
@@ -13,13 +16,19 @@ function ContributeForm({ user, initialMode = 'manual' }) {
     wattage: '',
     mode: '',
     maxPower: '',
-    biDirectionalFill: false,
+    bidir: false,
     crossHatch: false,
-    lineInterval: '',
-    scanAngle: '',
-    angleIncrement: '',
+    scanInterval: '',
+    angle: '',
+    anglePerPass: '',
     autoRotate: false,
     floodFill: false,
+    perforationMode: false,
+    wobbleEnable: false,
+    imageMode: '',
+    negativeImage: false,
+    useDotCorrection: false,
+    dotWidth: '',
     speed: '',
     numPasses: '1',
     frequency: '',
@@ -61,10 +70,12 @@ function ContributeForm({ user, initialMode = 'manual' }) {
       queryClient.invalidateQueries({ queryKey: ['settings'] })
       setForm({
         materialName: '', laserType: '', wattage: '', mode: '',
-        maxPower: '', biDirectionalFill: false, crossHatch: false,
-        lineInterval: '', scanAngle: '', angleIncrement: '',
-        autoRotate: false, floodFill: false, speed: '', numPasses: '1',
-        frequency: '', layerName: '', notes: '',
+        maxPower: '', bidir: false, crossHatch: false,
+        scanInterval: '', angle: '', anglePerPass: '',
+        autoRotate: false, floodFill: false, perforationMode: false,
+        wobbleEnable: false, imageMode: '', negativeImage: false,
+        useDotCorrection: false, dotWidth: '',
+        speed: '', numPasses: '1', frequency: '', layerName: '', notes: '',
       })
     },
     onError: (err) => {
@@ -118,13 +129,19 @@ function ContributeForm({ user, initialMode = 'manual' }) {
     if (form.notes) data.notes = form.notes
 
     // Additional parameters
-    data.biDirectionalFill = form.biDirectionalFill
+    data.bidir = form.bidir
     data.crossHatch = form.crossHatch
     data.autoRotate = form.autoRotate
     data.floodFill = form.floodFill
-    if (form.lineInterval) data.lineInterval = parseFloat(form.lineInterval)
-    if (form.scanAngle) data.scanAngle = parseFloat(form.scanAngle)
-    if (form.angleIncrement) data.angleIncrement = parseFloat(form.angleIncrement)
+    data.perforationMode = form.perforationMode
+    data.wobbleEnable = form.wobbleEnable
+    data.negativeImage = form.negativeImage
+    data.useDotCorrection = form.useDotCorrection
+    if (form.imageMode) data.imageMode = form.imageMode
+    if (form.dotWidth) data.dotWidth = form.dotWidth
+    if (form.scanInterval) data.scanInterval = parseFloat(form.scanInterval)
+    if (form.angle) data.angle = parseFloat(form.angle)
+    if (form.anglePerPass) data.anglePerPass = parseFloat(form.anglePerPass)
 
     mutation.mutate(data)
   }
@@ -183,17 +200,41 @@ function ContributeForm({ user, initialMode = 'manual' }) {
       )}
 
       {importResult && mode === 'import' && (
-        <div className="bg-ls-green/10 border border-ls-green/30 rounded-lg p-4 text-sm">
-          <p className="text-ls-green font-medium mb-2">Import completed!</p>
-          <p className="text-ls-text-muted">
-            ✅ {importResult.imported} settings imported successfully
-          </p>
-          {importResult.failed > 0 && (
-            <p className="text-ls-red mt-1">
-              ❌ {importResult.failed} settings failed (likely duplicates)
-            </p>
-          )}
-        </div>
+        <>
+          {/* Backdrop */}
+          <div className="fixed inset-0 left-0 lg:left-64 bg-black/50 z-40"></div>
+
+          {/* Modal Content */}
+          <div className="fixed inset-0 left-0 lg:left-64 flex items-center justify-center z-50 p-6 pointer-events-none">
+            <Card className="w-full max-w-md text-center pointer-events-auto">
+              <div className="mb-6">
+                <svg className="w-20 h-20 text-ls-green mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-bold text-ls-text mb-4">Import Completed!</h2>
+              <div className="space-y-2 mb-6">
+                <p className="text-lg text-ls-green">
+                  ✅ {importResult.imported} settings imported successfully
+                </p>
+                {importResult.failed > 0 && (
+                  <p className="text-ls-red">
+                    ❌ {importResult.failed} settings failed
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  window.location.href = '/search';
+                }}
+                className="w-full px-6 py-3 bg-ls-accent text-white rounded-lg hover:bg-ls-accent/90 font-medium text-lg cursor-pointer"
+              >
+                Go to Search
+              </button>
+            </Card>
+          </div>
+        </>
       )}
 
       {error && (
@@ -250,7 +291,7 @@ function ContributeForm({ user, initialMode = 'manual' }) {
               <Input
                 label="Material"
                 id="materialName"
-                placeholder="e.g., 3mm Birch Plywood"
+                placeholder="e.g., Brass, Copper, etc."
                 value={form.materialName}
                 onChange={(e) => setForm({ ...form, materialName: e.target.value })}
                 required
@@ -309,104 +350,214 @@ function ContributeForm({ user, initialMode = 'manual' }) {
               />
             </div>
 
-            {/* Row 2: Checkboxes */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="biDirectionalFill"
-                  checked={form.biDirectionalFill}
-                  onChange={(e) => setForm({ ...form, biDirectionalFill: e.target.checked })}
-                  className="w-4 h-4 rounded border-ls-border bg-ls-surface text-ls-accent focus:ring-2 focus:ring-ls-accent"
+            {/* Line Mode: Passes */}
+            {form.mode === 'Line' && (
+              <div className="grid grid-cols-1 gap-4">
+                <Input
+                  label="Passes"
+                  id="numPasses"
+                  type="number"
+                  min="1"
+                  value={form.numPasses}
+                  onChange={(e) => setForm({ ...form, numPasses: e.target.value })}
                 />
-                <label htmlFor="biDirectionalFill" className="text-sm text-ls-text cursor-pointer">
-                  Bi-Directional Fill
-                </label>
               </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="crossHatch"
-                  checked={form.crossHatch}
-                  onChange={(e) => setForm({ ...form, crossHatch: e.target.checked })}
-                  className="w-4 h-4 rounded border-ls-border bg-ls-surface text-ls-accent focus:ring-2 focus:ring-ls-accent"
-                />
-                <label htmlFor="crossHatch" className="text-sm text-ls-text cursor-pointer">
-                  Cross-Hatch
-                </label>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="autoRotate"
-                  checked={form.autoRotate}
-                  onChange={(e) => setForm({ ...form, autoRotate: e.target.checked })}
-                  className="w-4 h-4 rounded border-ls-border bg-ls-surface text-ls-accent focus:ring-2 focus:ring-ls-accent"
-                />
-                <label htmlFor="autoRotate" className="text-sm text-ls-text cursor-pointer">
-                  Auto Rotate
-                </label>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="floodFill"
-                  checked={form.floodFill}
-                  onChange={(e) => setForm({ ...form, floodFill: e.target.checked })}
-                  className="w-4 h-4 rounded border-ls-border bg-ls-surface text-ls-accent focus:ring-2 focus:ring-ls-accent"
-                />
-                <label htmlFor="floodFill" className="text-sm text-ls-text cursor-pointer">
-                  Flood Fill
-                </label>
-              </div>
-            </div>
+            )}
 
-            {/* Row 3: Line Interval, Scan Angle, Angle Increment */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <Input
-                label="Line Interval (mm)"
-                id="lineInterval"
-                type="number"
-                step="0.001"
-                min="0"
-                placeholder="e.g., 0.1"
-                value={form.lineInterval}
-                onChange={(e) => setForm({ ...form, lineInterval: e.target.value })}
-              />
-              <Input
-                label="Scan Angle (deg)"
-                id="scanAngle"
-                type="number"
-                step="1"
-                min="0"
-                max="360"
-                placeholder="e.g., 0"
-                value={form.scanAngle}
-                onChange={(e) => setForm({ ...form, scanAngle: e.target.value })}
-              />
-              <Input
-                label="Angle Increment (deg)"
-                id="angleIncrement"
-                type="number"
-                step="1"
-                min="0"
-                placeholder="e.g., 90"
-                value={form.angleIncrement}
-                onChange={(e) => setForm({ ...form, angleIncrement: e.target.value })}
-              />
-            </div>
+            {/* Fill/Offset Fill Mode: Checkboxes */}
+            {(form.mode === 'Fill' || form.mode === 'Offset Fill') && (
+              <div className="flex justify-end">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="bidir"
+                    checked={form.bidir}
+                    onChange={(e) => setForm({ ...form, bidir: e.target.checked })}
+                    className="w-4 h-4 rounded border-ls-border bg-ls-surface text-ls-accent focus:ring-2 focus:ring-ls-accent"
+                  />
+                  <label htmlFor="bidir" className="text-sm text-ls-text cursor-pointer">
+                    Bi-directional Fill
+                  </label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="crossHatch"
+                    checked={form.crossHatch}
+                    onChange={(e) => setForm({ ...form, crossHatch: e.target.checked })}
+                    className="w-4 h-4 rounded border-ls-border bg-ls-surface text-ls-accent focus:ring-2 focus:ring-ls-accent"
+                  />
+                  <label htmlFor="crossHatch" className="text-sm text-ls-text cursor-pointer">
+                    Cross-Hatch
+                  </label>
+                </div>
+                </div>
+              </div>
+            )}
 
-            {/* Row 4: Passes */}
-            <div className="grid grid-cols-1 gap-4">
-              <Input
-                label="Passes"
-                id="numPasses"
-                type="number"
-                min="1"
-                value={form.numPasses}
-                onChange={(e) => setForm({ ...form, numPasses: e.target.value })}
-              />
-            </div>
+            {/* Image Mode: Checkboxes */}
+            {form.mode === 'Image' && (
+              <div className="flex justify-end">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="bidir"
+                      checked={form.bidir}
+                      onChange={(e) => setForm({ ...form, bidir: e.target.checked })}
+                      className="w-4 h-4 rounded border-ls-border bg-ls-surface text-ls-accent focus:ring-2 focus:ring-ls-accent"
+                    />
+                    <label htmlFor="bidir" className="text-sm text-ls-text cursor-pointer">
+                      Bi-directional Fill
+                    </label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="negativeImage"
+                      checked={form.negativeImage}
+                      onChange={(e) => setForm({ ...form, negativeImage: e.target.checked })}
+                      className="w-4 h-4 rounded border-ls-border bg-ls-surface text-ls-accent focus:ring-2 focus:ring-ls-accent"
+                    />
+                    <label htmlFor="negativeImage" className="text-sm text-ls-text cursor-pointer">
+                      Negative Image
+                    </label>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Row 3: Scan Interval, Angle, Angle Per Pass - Show for Fill/Image/Offset Fill */}
+            {(form.mode === 'Fill' || form.mode === 'Image' || form.mode === 'Offset Fill') && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Input
+                  label="Line Interval (mm)"
+                  id="scanInterval"
+                  type="number"
+                  step="0.001"
+                  min="0"
+                  placeholder="e.g., 0.1"
+                  value={form.scanInterval}
+                  onChange={(e) => setForm({ ...form, scanInterval: e.target.value })}
+                />
+                <Input
+                  label="Scan Angle (deg)"
+                  id="angle"
+                  type="number"
+                  step="1"
+                  min="0"
+                  max="360"
+                  placeholder="e.g., 0"
+                  value={form.angle}
+                  onChange={(e) => setForm({ ...form, angle: e.target.value })}
+                />
+                <Input
+                  label="Angle Increment (deg)"
+                  id="anglePerPass"
+                  type="number"
+                  step="1"
+                  min="0"
+                  placeholder="e.g., 90"
+                  value={form.anglePerPass}
+                  onChange={(e) => setForm({ ...form, anglePerPass: e.target.value })}
+                />
+              </div>
+            )}
+
+            {/* Image Mode Selector - For Image mode */}
+            {form.mode === 'Image' && (
+              <Select
+                label="Image Mode"
+                placeholder="Select image mode..."
+                value={form.imageMode}
+                onValueChange={(val) => setForm({ ...form, imageMode: val })}
+                required
+              >
+                <SelectItem value="Threshold">Threshold</SelectItem>
+                <SelectItem value="Ordered">Ordered</SelectItem>
+                <SelectItem value="Atkinson">Atkinson</SelectItem>
+                <SelectItem value="Dither">Dither</SelectItem>
+                <SelectItem value="Stucki">Stucki</SelectItem>
+                <SelectItem value="Jarvis">Jarvis</SelectItem>
+                <SelectItem value="Newsprint">Newsprint</SelectItem>
+                <SelectItem value="Halftone">Halftone</SelectItem>
+                <SelectItem value="Sketch">Sketch</SelectItem>
+                <SelectItem value="Grayscale">Grayscale</SelectItem>
+                <SelectItem value="3D Sliced">3D Sliced</SelectItem>
+              </Select>
+            )}
+
+            {/* Row 4: Passes - For Fill, Image, Offset Fill modes */}
+            {(form.mode === 'Fill' || form.mode === 'Image' || form.mode === 'Offset Fill') && (
+              <div className="grid grid-cols-1 gap-4">
+                <Input
+                  label="Passes"
+                  id="numPasses"
+                  type="number"
+                  min="1"
+                  value={form.numPasses}
+                  onChange={(e) => setForm({ ...form, numPasses: e.target.value })}
+                />
+              </div>
+            )}
+
+            {/* Auto Rotate, Flood Fill, Dot Correction, Dot Width - For Fill/Offset Fill modes */}
+            {(form.mode === 'Fill' || form.mode === 'Offset Fill') && (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="autoRotate"
+                      checked={form.autoRotate}
+                      onChange={(e) => setForm({ ...form, autoRotate: e.target.checked })}
+                      className="w-4 h-4 rounded border-ls-border bg-ls-surface text-ls-accent focus:ring-2 focus:ring-ls-accent"
+                    />
+                    <label htmlFor="autoRotate" className="text-sm text-ls-text cursor-pointer">
+                      Auto Rotate
+                    </label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="floodFill"
+                      checked={form.floodFill}
+                      onChange={(e) => setForm({ ...form, floodFill: e.target.checked })}
+                      className="w-4 h-4 rounded border-ls-border bg-ls-surface text-ls-accent focus:ring-2 focus:ring-ls-accent"
+                    />
+                    <label htmlFor="floodFill" className="text-sm text-ls-text cursor-pointer">
+                      Flood Fill
+                    </label>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="useDotCorrection"
+                      checked={form.useDotCorrection}
+                      onChange={(e) => setForm({ ...form, useDotCorrection: e.target.checked })}
+                      className="w-4 h-4 rounded border-ls-border bg-ls-surface text-ls-accent focus:ring-2 focus:ring-ls-accent"
+                    />
+                    <label htmlFor="useDotCorrection" className="text-sm text-ls-text cursor-pointer">
+                      Use Dot Correction
+                    </label>
+                  </div>
+                  <Input
+                    label="Dot Width"
+                    id="dotWidth"
+                    type="number"
+                    step="0.0001"
+                    min="0"
+                    placeholder="e.g., 0.05"
+                    value={form.dotWidth}
+                    onChange={(e) => setForm({ ...form, dotWidth: e.target.value })}
+                  />
+                </div>
+              </>
+            )}
           </div>
 
           {/* Notes */}
