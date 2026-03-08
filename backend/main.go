@@ -332,7 +332,9 @@ func loginHandler(c *gin.Context) {
 		"id":          user.ID,
 		"firstName":   user.FirstName,
 		"lastName":    user.LastName,
+		"email":       user.Email,
 		"displayName": displayName,
+		"isAdmin":     user.IsAdmin,
 	})
 }
 
