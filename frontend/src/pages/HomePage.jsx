@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import Button from '../components/ui/Button'
 
 const StarburstSvg = () => (
-  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="absolute top-1/2 left-1/2 w-[0.55em] h-[0.55em]" style={{ transform: 'translate(-50%, -35%)' }}>
+  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="absolute top-1/2 left-1/2 w-[0.55em] h-[0.55em]" style={{ transform: 'translate(-50%, -35%)' }} aria-hidden="true">
     <circle cx="12" cy="12" r="5" fill="#f97316" />
     <line x1="12" y1="1" x2="12" y2="5" stroke="#f97316" strokeWidth="2" strokeLinecap="round" />
     <line x1="12" y1="19" x2="12" y2="23" stroke="#f97316" strokeWidth="2" strokeLinecap="round" />
@@ -123,7 +123,7 @@ function HomePage() {
             ].map((item) => (
               <div key={item.title} className="text-center p-6">
                 <div className="w-20 h-20 mx-auto mb-6 bg-ls-accent/10 border-4 border-ls-accent rounded-xl flex items-center justify-center">
-                  <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
                   </svg>
                 </div>
