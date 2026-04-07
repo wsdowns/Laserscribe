@@ -126,8 +126,6 @@ function SettingCard({ setting, user, onVote, showAttribution = true, onDelete }
           {isOwner && onDelete && (
             <button
               onClick={() => {
-                console.log('Delete button clicked for setting:', settingId)
-                console.log('isOwner:', isOwner, 'user.id:', user?.id, 'settingUserId:', settingUserId)
                 if (window.confirm('Are you sure you want to delete this setting? This cannot be undone.')) {
                   onDelete(settingId)
                 }

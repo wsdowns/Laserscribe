@@ -11,27 +11,20 @@ function ProfilePage({ user }) {
   })
 
   const handleDelete = async (settingId) => {
-    console.log('Deleting setting:', settingId)
     try {
       const response = await fetch(`/api/settings/${settingId}`, {
         method: 'DELETE',
         credentials: 'include',
       })
 
-      console.log('Delete response status:', response.status)
-
       if (response.ok) {
-        console.log('Delete successful, refreshing...')
         // Refresh the settings list
         await queryClient.refetchQueries(['profile', 'settings'])
-        console.log('Settings refreshed')
       } else {
         const data = await response.json()
-        console.error('Delete failed:', data)
         alert(data.error || 'Failed to delete setting')
       }
     } catch (error) {
-      console.error('Error deleting setting:', error)
       alert('Failed to delete setting')
     }
   }
