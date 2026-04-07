@@ -10,9 +10,9 @@ function VoteButtons({ score, userVote, onVote, size = 'default' }) {
             ? 'text-ls-green bg-ls-green/15'
             : 'text-ls-text-muted hover:text-ls-green hover:bg-ls-green/10'
         }`}
-        title="Upvote - this setting works"
+        aria-label="Upvote this setting - it works"
       >
-        <svg className={isSmall ? 'w-4 h-4' : 'w-5 h-5'} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className={isSmall ? 'w-4 h-4' : 'w-5 h-5'} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
         </svg>
       </button>
@@ -28,9 +28,9 @@ function VoteButtons({ score, userVote, onVote, size = 'default' }) {
             ? 'text-ls-red bg-ls-red/15'
             : 'text-ls-text-muted hover:text-ls-red hover:bg-ls-red/10'
         }`}
-        title="Downvote - this setting doesn't work"
+        aria-label="Downvote this setting - it doesn't work"
       >
-        <svg className={isSmall ? 'w-4 h-4' : 'w-5 h-5'} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className={isSmall ? 'w-4 h-4' : 'w-5 h-5'} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
       </button>
