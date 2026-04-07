@@ -1,31 +1,57 @@
+import { useEffect, useRef } from 'react'
 import ContributeForm from './ContributeForm'
 
 function ContributeModal({ isOpen, onClose, user }) {
+  const modalRef = useRef(null)
+
+  useEffect(() => {
+    if (isOpen) {
+      // Focus first focusable element in modal
+      const focusableElements = modalRef.current?.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      )
+      if (focusableElements?.length > 0) {
+        focusableElements[0].focus()
+      }
+    }
+  }, [isOpen])
+
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 lg:pl-64">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 lg:pl-64"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="contribute-modal-title"
+    >
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
         onClick={onClose}
+        aria-hidden="true"
       />
 
       {/* Modal */}
-      <div className="relative bg-ls-darker border border-ls-accent rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+      <div
+        ref={modalRef}
+        className="relative bg-ls-darker border border-ls-accent rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+      >
         {/* Close button */}
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-ls-text-muted hover:text-ls-text transition-colors z-10"
           aria-label="Close modal"
         >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-6 h-6" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
 
         <div className="p-8">
-          <h2 className="text-3xl font-bold text-ls-text mb-2">Contribute to PowerScale</h2>
+          <h2 id="contribute-modal-title" className="text-3xl font-bold text-ls-text mb-2">
+            Contribute to PowerScale
+          </h2>
           <p className="text-ls-text-muted mb-6">
             Share your tested laser settings with the community
           </p>
