@@ -55,8 +55,14 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <div className="min-h-screen bg-ls-dark">
+          <a
+            href="#main-content"
+            className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-ls-accent focus:text-white focus:rounded-lg"
+          >
+            Skip to main content
+          </a>
           <Sidebar user={user} onLogout={logout} />
-          <div className="lg:ml-64">
+          <main className="lg:ml-64" id="main-content">
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/powerscale" element={user ? <Navigate to="/search" /> : <PowerScaleGatewayPage />} />
@@ -72,7 +78,7 @@ function App() {
               <Route path="/admin/users" element={user?.isAdmin ? <AdminUsersPage user={user} /> : <Navigate to="/" />} />
               <Route path="/admin/settings" element={user?.isAdmin ? <AdminSettingsPage user={user} /> : <Navigate to="/" />} />
             </Routes>
-          </div>
+          </main>
         </div>
       </BrowserRouter>
     </QueryClientProvider>

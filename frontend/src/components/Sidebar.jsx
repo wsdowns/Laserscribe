@@ -69,7 +69,7 @@ function Sidebar({ user, onLogout }) {
           </div>
 
           {/* Nav */}
-          <nav className="flex-1 px-3 py-6 space-y-2">
+          <nav className="flex-1 px-3 py-6 space-y-2" aria-label="Main navigation">
             {navItems.map((item) => {
               const isActive = location.pathname === item.path
               return (
