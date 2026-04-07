@@ -50,7 +50,7 @@ function SettingDetailPage({ user }) {
   return (
     <div className="max-w-3xl mx-auto px-6 py-8">
       <Link to="/search" className="text-sm text-ls-text-muted hover:text-ls-accent mb-6 inline-flex items-center gap-1">
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
         </svg>
         Back to search
