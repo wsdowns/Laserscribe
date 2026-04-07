@@ -208,7 +208,7 @@ function ContributeForm({ user, initialMode = 'manual' }) {
           <div className="fixed inset-0 left-0 lg:left-64 flex items-center justify-center z-50 p-6 pointer-events-none">
             <Card className="w-full max-w-md text-center pointer-events-auto">
               <div className="mb-6">
-                <svg className="w-20 h-20 text-ls-green mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-20 h-20 text-ls-green mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
@@ -229,6 +229,7 @@ function ContributeForm({ user, initialMode = 'manual' }) {
                   window.location.href = '/search';
                 }}
                 className="w-full px-6 py-3 bg-ls-accent text-white rounded-lg hover:bg-ls-accent/90 font-medium text-lg cursor-pointer"
+                aria-label="Go to search page to view your imported settings"
               >
                 Go to Search
               </button>

@@ -46,7 +46,7 @@ function RegisterPage() {
       <div className="min-h-[80vh] flex items-center justify-center px-6">
         <Card className="w-full max-w-md text-center">
           <div className="mb-4">
-            <svg className="w-16 h-16 text-ls-green mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-16 h-16 text-ls-green mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
           </div>

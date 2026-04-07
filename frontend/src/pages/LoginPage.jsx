@@ -98,7 +98,11 @@ function LoginPage({ onLogin }) {
             {resendSent ? (
               <p className="text-ls-text-muted">Verification link sent! Check your email.</p>
             ) : (
-              <button onClick={handleResend} className="text-ls-accent hover:underline">
+              <button
+                onClick={handleResend}
+                className="text-ls-accent hover:underline"
+                aria-label="Resend verification email to complete account setup"
+              >
                 Resend verification email
               </button>
             )}
