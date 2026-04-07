@@ -23,12 +23,6 @@ function HomePage() {
         <div className="absolute inset-0 bg-gradient-to-br from-ls-accent/5 via-transparent to-ls-blue/5" />
         <div className="relative max-w-4xl mx-auto text-center" style={{ animation: 'fade-in-up 0.6s ease-out' }}>
 
-          {/* Under Construction Badge - Moved to Top */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-ls-accent/10 border border-ls-accent/20 rounded-full mb-4">
-            <span className="w-2 h-2 bg-ls-accent rounded-full animate-pulse" />
-            <span className="text-sm text-ls-accent font-medium">Under Construction</span>
-          </div>
-
           {/* Laserscribed logo */}
           <div className="mb-3">
             <div className="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight leading-none">
